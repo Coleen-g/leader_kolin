@@ -1,12 +1,17 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
-
+import ArticleList from "./ArticleList";
+import CommentSection from "./CommentSection";
+import Sidebar from "./Sidebar";
+import StudentReader from "./StudentReader";
+import Toasts from "./Toasts";
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+   <div>
+    <ArticleList/>
+    <CommentSection/>
+    <Sidebar/>
+    <StudentReader/>
+    <Toasts/>
+   </div>
   );
 }
 
