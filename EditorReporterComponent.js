@@ -20,6 +20,7 @@ export default function EditorReporterComponent() {
   const [drafts, setDrafts] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [editingType, setEditingType] = useState(null); // "draft" or "submission"
   const [message, setMessage] = useState("");
   const [mediaUri, setMediaUri] = useState(null);
 
@@ -56,6 +57,7 @@ export default function EditorReporterComponent() {
     setContent("");
     setCategory("General");
     setEditingId(null);
+    setEditingType(null);
     setMediaUri(null);
   };
 
@@ -77,6 +79,7 @@ export default function EditorReporterComponent() {
     }
   };
 
+  // 💾 Save draft
   const saveDraft = () => {
     const id = editingId || Date.now().toString();
     const draft = {
@@ -87,37 +90,77 @@ export default function EditorReporterComponent() {
       mediaUri,
       updatedAt: new Date().toISOString(),
     };
-
     setDrafts((prev) => [draft, ...prev.filter((d) => d.id !== id)]);
     showTempMsg("💾 Draft saved!");
     resetForm();
   };
 
-  const submit = (immediate = false) => {
+  // 📨 Submit for admin approval
+  const submit = () => {
     if (!title.trim() || !content.trim()) {
       showTempMsg("⚠️ Title and content required!");
       return;
     }
 
     const id = editingId || Date.now().toString();
-    const sub = {
+    const submission = {
       id,
       title,
       content,
       category,
       mediaUri,
-      status: immediate ? "approved" : "pending",
+      status: "pending", // waiting for admin
       submittedAt: new Date().toISOString(),
+      edited: false,
     };
 
-    setSubmissions((prev) => [sub, ...prev.filter((s) => s.id !== id)]);
+    setSubmissions((prev) => [submission, ...prev.filter((s) => s.id !== id)]);
     setDrafts((prev) => prev.filter((d) => d.id !== id));
-    showTempMsg(immediate ? "✅ Published!" : "📤 Submitted for approval!");
+    showTempMsg("📤 Submitted for admin approval!");
+    resetForm();
+  };
+
+  // ✏️ Edit published or pending article
+  const editSubmission = (item) => {
+    setEditingId(item.id);
+    setEditingType("submission");
+    setTitle(item.title);
+    setContent(item.content);
+    setCategory(item.category);
+    setMediaUri(item.mediaUri);
+  };
+
+  // 💾 Update a published/pending article
+  const updateSubmission = () => {
+    if (!title.trim() || !content.trim()) {
+      showTempMsg("⚠️ Title and content required!");
+      return;
+    }
+
+    setSubmissions((prev) =>
+      prev.map((s) =>
+        s.id === editingId
+          ? {
+              ...s,
+              title,
+              content,
+              category,
+              mediaUri,
+              edited: true,
+              status: s.status === "approved" ? "pending" : s.status,
+              updatedAt: new Date().toISOString(),
+            }
+          : s
+      )
+    );
+
+    showTempMsg("✅ Article updated and sent for re-approval!");
     resetForm();
   };
 
   const loadDraft = (d) => {
     setEditingId(d.id);
+    setEditingType("draft");
     setTitle(d.title);
     setContent(d.content);
     setCategory(d.category);
@@ -137,19 +180,12 @@ export default function EditorReporterComponent() {
     ]);
   };
 
-  const mockApprove = (id, status) => {
-    setSubmissions((prev) =>
-      prev.map((s) =>
-        s.id === id ? { ...s, status, updatedAt: new Date().toISOString() } : s
-      )
-    );
-  };
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.header}>🗞️ Editor / Reporter Panel</Text>
 
+        {/* ✏️ Editor Form */}
         <View style={styles.card}>
           <TextInput
             style={styles.input}
@@ -191,28 +227,34 @@ export default function EditorReporterComponent() {
             <Text style={{ color: "#fff" }}>📷 Pick Image or Video</Text>
           </TouchableOpacity>
 
+          {/* Buttons switch depending on editing type */}
           <View style={styles.row}>
-            <TouchableOpacity style={styles.btn} onPress={saveDraft}>
-              <Text>Save Draft</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btn, styles.primary]}
-              onPress={() => submit(false)}
-            >
-              <Text style={styles.btnText}>Submit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btn, styles.success]}
-              onPress={() => submit(true)}
-            >
-              <Text style={styles.btnText}>Submit & Publish</Text>
-            </TouchableOpacity>
+            {editingType === "submission" ? (
+              <TouchableOpacity
+                style={[styles.btn, styles.success]}
+                onPress={updateSubmission}
+              >
+                <Text style={styles.btnText}>Update Article</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity style={styles.btn} onPress={saveDraft}>
+                  <Text>Save Draft</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.btn, styles.primary]}
+                  onPress={submit}
+                >
+                  <Text style={styles.btnText}>Submit for Approval</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
 
           {message ? <Text style={styles.message}>{message}</Text> : null}
         </View>
 
-        {/* DRAFT LIST */}
+        {/* 📝 Drafts */}
         <View style={styles.card}>
           <Text style={styles.subHeader}>📝 Drafts</Text>
           {drafts.length === 0 ? (
@@ -222,12 +264,6 @@ export default function EditorReporterComponent() {
               <View key={d.id} style={styles.listItem}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.bold}>{d.title}</Text>
-                  {d.mediaUri && (
-                    <Image
-                      source={{ uri: d.mediaUri }}
-                      style={{ width: 60, height: 40, borderRadius: 4 }}
-                    />
-                  )}
                 </View>
                 <View>
                   <TouchableOpacity onPress={() => loadDraft(d)}>
@@ -242,16 +278,19 @@ export default function EditorReporterComponent() {
           )}
         </View>
 
-        {/* SUBMISSIONS */}
+        {/* 📤 Submitted Articles */}
         <View style={styles.card}>
-          <Text style={styles.subHeader}>📤 Submissions</Text>
+          <Text style={styles.subHeader}>📤 Submitted / Published</Text>
           {submissions.length === 0 ? (
             <Text style={styles.gray}>No submissions yet.</Text>
           ) : (
             submissions.map((s) => (
               <View key={s.id} style={styles.listItem}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.bold}>{s.title}</Text>
+                  <Text style={styles.bold}>
+                    {s.title}{" "}
+                    {s.edited && <Text style={{ color: "gray" }}>(Edited)</Text>}
+                  </Text>
                   <Text style={styles.small}>
                     {s.category} • {new Date(s.submittedAt).toLocaleString()}
                   </Text>
@@ -275,11 +314,8 @@ export default function EditorReporterComponent() {
                   >
                     {s.status}
                   </Text>
-                  <TouchableOpacity onPress={() => mockApprove(s.id, "approved")}>
-                    <Text style={styles.link}>Approve</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => mockApprove(s.id, "rejected")}>
-                    <Text style={[styles.link, { color: "red" }]}>Reject</Text>
+                  <TouchableOpacity onPress={() => editSubmission(s)}>
+                    <Text style={styles.link}>Edit</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -291,6 +327,7 @@ export default function EditorReporterComponent() {
   );
 }
 
+// 🎨 Styles
 const styles = StyleSheet.create({
   container: { padding: 16 },
   header: { fontSize: 20, fontWeight: "bold", marginBottom: 12 },
@@ -332,7 +369,11 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: "#2563eb" },
   success: { backgroundColor: "#16a34a" },
   btnText: { color: "#fff" },
-  row: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  row: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
   message: { marginTop: 8, color: "green" },
   gray: { color: "gray" },
   bold: { fontWeight: "600" },
@@ -347,7 +388,12 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 6,
   },
-  status: { padding: 4, borderRadius: 4, fontSize: 12, textTransform: "capitalize" },
+  status: {
+    padding: 4,
+    borderRadius: 4,
+    fontSize: 12,
+    textTransform: "capitalize",
+  },
   approved: { backgroundColor: "#dcfce7", color: "#166534" },
   rejected: { backgroundColor: "#fee2e2", color: "#7f1d1d" },
   pending: { backgroundColor: "#fef3c7", color: "#78350f" },
