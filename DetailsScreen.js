@@ -11,8 +11,7 @@ export default function DetailsScreen({ route }) {
       <Text style={styles.title}>{news.title}</Text>
       <Text style={styles.summary}>{news.summary}</Text>
       <Text style={styles.body}>
-        This is where the full article would go. You can later replace this with
-        real content from a database or API.
+        jsjsjsnsjksksmznnxnxdkdnxnxnxnbxbdbdjjd
       </Text>
     </View>
   );
