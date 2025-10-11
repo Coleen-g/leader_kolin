@@ -1,40 +1,31 @@
 import React, { useState, useEffect } from "react";
-import {
-  SafeAreaView,
-  ScrollView,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Alert,
-} from "react-native";
+import { SafeAreaView, ScrollView } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as ImagePicker from "expo-image-picker";
+import PostScreen from "./PostScreen";
+import SubmissionsScreen from "./SubmissionsScreen";
+import BottomNav from "./BottomNav";
+import { styles } from "./styles";
 
 export default function EditorReporterComponent() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [category, setCategory] = useState("General");
+  const [category, setCategory] = useState("");
   const [drafts, setDrafts] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [editingId, setEditingId] = useState(null);
-  const [editingType, setEditingType] = useState(null); // "draft" or "submission"
+  const [editingType, setEditingType] = useState(null);
   const [message, setMessage] = useState("");
   const [mediaUri, setMediaUri] = useState(null);
+  const [activeScreen, setActiveScreen] = useState("Post");
 
-  // Load stored data
+  const categories = ["Sports", "Events", "Academics", "News"];
+
   useEffect(() => {
     const loadData = async () => {
-      try {
-        const storedDrafts = await AsyncStorage.getItem("drafts");
-        const storedSubs = await AsyncStorage.getItem("submissions");
-        if (storedDrafts) setDrafts(JSON.parse(storedDrafts));
-        if (storedSubs) setSubmissions(JSON.parse(storedSubs));
-      } catch (e) {
-        console.log("Load error", e);
-      }
+      const storedDrafts = await AsyncStorage.getItem("drafts");
+      const storedSubs = await AsyncStorage.getItem("submissions");
+      if (storedDrafts) setDrafts(JSON.parse(storedDrafts));
+      if (storedSubs) setSubmissions(JSON.parse(storedSubs));
     };
     loadData();
   }, []);
@@ -47,354 +38,63 @@ export default function EditorReporterComponent() {
     AsyncStorage.setItem("submissions", JSON.stringify(submissions));
   }, [submissions]);
 
-  const showTempMsg = (txt) => {
-    setMessage(txt);
-    setTimeout(() => setMessage(""), 2000);
+  const showTempMsg = (txt, color = "#2563eb") => {
+    setMessage({ text: txt, color });
+    setTimeout(() => setMessage(""), 2500);
   };
 
   const resetForm = () => {
     setTitle("");
     setContent("");
-    setCategory("General");
+    setCategory("");
     setEditingId(null);
     setEditingType(null);
     setMediaUri(null);
   };
 
-  // 📷 Pick image or video
-  const pickMedia = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      alert("Permission denied!");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setMediaUri(result.assets[0].uri);
-    }
-  };
-
-  // 💾 Save draft
-  const saveDraft = () => {
-    const id = editingId || Date.now().toString();
-    const draft = {
-      id,
-      title,
-      content,
-      category,
-      mediaUri,
-      updatedAt: new Date().toISOString(),
-    };
-    setDrafts((prev) => [draft, ...prev.filter((d) => d.id !== id)]);
-    showTempMsg("💾 Draft saved!");
-    resetForm();
-  };
-
-  // 📨 Submit for admin approval
-  const submit = () => {
-    if (!title.trim() || !content.trim()) {
-      showTempMsg("⚠️ Title and content required!");
-      return;
-    }
-
-    const id = editingId || Date.now().toString();
-    const submission = {
-      id,
-      title,
-      content,
-      category,
-      mediaUri,
-      status: "pending", // waiting for admin
-      submittedAt: new Date().toISOString(),
-      edited: false,
-    };
-
-    setSubmissions((prev) => [submission, ...prev.filter((s) => s.id !== id)]);
-    setDrafts((prev) => prev.filter((d) => d.id !== id));
-    showTempMsg("📤 Submitted for admin approval!");
-    resetForm();
-  };
-
-  // ✏️ Edit published or pending article
-  const editSubmission = (item) => {
-    setEditingId(item.id);
-    setEditingType("submission");
-    setTitle(item.title);
-    setContent(item.content);
-    setCategory(item.category);
-    setMediaUri(item.mediaUri);
-  };
-
-  // 💾 Update a published/pending article
-  const updateSubmission = () => {
-    if (!title.trim() || !content.trim()) {
-      showTempMsg("⚠️ Title and content required!");
-      return;
-    }
-
-    setSubmissions((prev) =>
-      prev.map((s) =>
-        s.id === editingId
-          ? {
-              ...s,
-              title,
-              content,
-              category,
-              mediaUri,
-              edited: true,
-              status: s.status === "approved" ? "pending" : s.status,
-              updatedAt: new Date().toISOString(),
-            }
-          : s
-      )
-    );
-
-    showTempMsg("✅ Article updated and sent for re-approval!");
-    resetForm();
-  };
-
-  const loadDraft = (d) => {
-    setEditingId(d.id);
-    setEditingType("draft");
-    setTitle(d.title);
-    setContent(d.content);
-    setCategory(d.category);
-    setMediaUri(d.mediaUri);
-  };
-
-  const deleteDraft = (id) => {
-    Alert.alert("Delete draft?", "This cannot be undone.", [
-      { text: "Cancel" },
-      {
-        text: "Delete",
-        onPress: () => {
-          setDrafts((prev) => prev.filter((d) => d.id !== id));
-          showTempMsg("🗑️ Draft deleted!");
-        },
-      },
-    ]);
-  };
-
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.header}>🗞️ Editor / Reporter Panel</Text>
-
-        {/* ✏️ Editor Form */}
-        <View style={styles.card}>
-          <TextInput
-            style={styles.input}
-            placeholder="Title"
-            value={title}
-            onChangeText={setTitle}
+        {activeScreen === "Post" ? (
+          <PostScreen
+            title={title}
+            setTitle={setTitle}
+            content={content}
+            setContent={setContent}
+            category={category}
+            setCategory={setCategory}
+            mediaUri={mediaUri}
+            setMediaUri={setMediaUri}
+            showTempMsg={showTempMsg}
+            resetForm={resetForm}
+            drafts={drafts}
+            setDrafts={setDrafts}
+            submissions={submissions}
+            setSubmissions={setSubmissions}
+            editingId={editingId}
+            editingType={editingType}
+            setEditingId={setEditingId}
+            setEditingType={setEditingType}
+            message={message}
+            categories={categories}
           />
-          <TextInput
-            style={styles.input}
-            placeholder="Category"
-            value={category}
-            onChangeText={setCategory}
+        ) : (
+          <SubmissionsScreen
+            submissions={submissions}
+            drafts={drafts}
+            setActiveScreen={setActiveScreen}
+            setTitle={setTitle}
+            setContent={setContent}
+            setCategory={setCategory}
+            setMediaUri={setMediaUri}
+            setEditingId={setEditingId}
+            setEditingType={setEditingType}
+            setDrafts={setDrafts}
           />
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Write your content..."
-            value={content}
-            onChangeText={setContent}
-            multiline
-          />
-
-          {/* 📷 Media Preview */}
-          {mediaUri && (
-            <View style={{ alignItems: "center", marginVertical: 8 }}>
-              <Image
-                source={{ uri: mediaUri }}
-                style={{ width: 220, height: 150, borderRadius: 8 }}
-              />
-              <TouchableOpacity
-                onPress={() => setMediaUri(null)}
-                style={styles.removeBtn}
-              >
-                <Text style={{ color: "#fff" }}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <TouchableOpacity style={styles.pickBtn} onPress={pickMedia}>
-            <Text style={{ color: "#fff" }}>📷 Pick Image or Video</Text>
-          </TouchableOpacity>
-
-          {/* Buttons switch depending on editing type */}
-          <View style={styles.row}>
-            {editingType === "submission" ? (
-              <TouchableOpacity
-                style={[styles.btn, styles.success]}
-                onPress={updateSubmission}
-              >
-                <Text style={styles.btnText}>Update Article</Text>
-              </TouchableOpacity>
-            ) : (
-              <>
-                <TouchableOpacity style={styles.btn} onPress={saveDraft}>
-                  <Text>Save Draft</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.btn, styles.primary]}
-                  onPress={submit}
-                >
-                  <Text style={styles.btnText}>Submit for Approval</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-
-          {message ? <Text style={styles.message}>{message}</Text> : null}
-        </View>
-
-        {/* 📝 Drafts */}
-        <View style={styles.card}>
-          <Text style={styles.subHeader}>📝 Drafts</Text>
-          {drafts.length === 0 ? (
-            <Text style={styles.gray}>No drafts yet.</Text>
-          ) : (
-            drafts.map((d) => (
-              <View key={d.id} style={styles.listItem}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.bold}>{d.title}</Text>
-                </View>
-                <View>
-                  <TouchableOpacity onPress={() => loadDraft(d)}>
-                    <Text style={styles.link}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => deleteDraft(d.id)}>
-                    <Text style={[styles.link, { color: "red" }]}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-
-        {/* 📤 Submitted Articles */}
-        <View style={styles.card}>
-          <Text style={styles.subHeader}>📤 Submitted / Published</Text>
-          {submissions.length === 0 ? (
-            <Text style={styles.gray}>No submissions yet.</Text>
-          ) : (
-            submissions.map((s) => (
-              <View key={s.id} style={styles.listItem}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.bold}>
-                    {s.title}{" "}
-                    {s.edited && <Text style={{ color: "gray" }}>(Edited)</Text>}
-                  </Text>
-                  <Text style={styles.small}>
-                    {s.category} • {new Date(s.submittedAt).toLocaleString()}
-                  </Text>
-                  {s.mediaUri && (
-                    <Image
-                      source={{ uri: s.mediaUri }}
-                      style={{ width: 60, height: 40, borderRadius: 4 }}
-                    />
-                  )}
-                </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text
-                    style={[
-                      styles.status,
-                      s.status === "approved"
-                        ? styles.approved
-                        : s.status === "rejected"
-                        ? styles.rejected
-                        : styles.pending,
-                    ]}
-                  >
-                    {s.status}
-                  </Text>
-                  <TouchableOpacity onPress={() => editSubmission(s)}>
-                    <Text style={styles.link}>Edit</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
+        )}
       </ScrollView>
+
+      <BottomNav activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
     </SafeAreaView>
   );
 }
-
-// 🎨 Styles
-const styles = StyleSheet.create({
-  container: { padding: 16 },
-  header: { fontSize: 20, fontWeight: "bold", marginBottom: 12 },
-  card: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    backgroundColor: "#fff",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    padding: 8,
-    marginBottom: 8,
-  },
-  textArea: { minHeight: 100, textAlignVertical: "top" },
-  btn: {
-    backgroundColor: "#e5e5e5",
-    padding: 8,
-    borderRadius: 6,
-    margin: 3,
-  },
-  pickBtn: {
-    backgroundColor: "#2563eb",
-    padding: 10,
-    borderRadius: 8,
-    alignItems: "center",
-    marginVertical: 8,
-  },
-  removeBtn: {
-    backgroundColor: "red",
-    padding: 6,
-    borderRadius: 6,
-    marginTop: 4,
-  },
-  primary: { backgroundColor: "#2563eb" },
-  success: { backgroundColor: "#16a34a" },
-  btnText: { color: "#fff" },
-  row: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  message: { marginTop: 8, color: "green" },
-  gray: { color: "gray" },
-  bold: { fontWeight: "600" },
-  link: { color: "#2563eb", marginVertical: 2 },
-  small: { fontSize: 12, color: "gray" },
-  listItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    borderWidth: 1,
-    borderColor: "#eee",
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 6,
-  },
-  status: {
-    padding: 4,
-    borderRadius: 4,
-    fontSize: 12,
-    textTransform: "capitalize",
-  },
-  approved: { backgroundColor: "#dcfce7", color: "#166534" },
-  rejected: { backgroundColor: "#fee2e2", color: "#7f1d1d" },
-  pending: { backgroundColor: "#fef3c7", color: "#78350f" },
-});
