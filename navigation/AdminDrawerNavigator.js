@@ -1,7 +1,6 @@
 import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
-import { NavigationContainer } from '@react-navigation/native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
 import DashboardScreen from '../screen/DashboardScreen';
@@ -79,37 +78,35 @@ function DrawerScreens() {
 
 export default function AdminDrawerNavigator() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="Admin" component={DrawerScreens} options={{ headerShown: false }} />
-        <Stack.Screen
-          name="CreateNews"
-          component={CreateNewsScreen}
-          options={{
-            title: 'Create News',
-            headerStyle: { backgroundColor: '#1E293B' },
-            headerTintColor: '#fff',
-          }}
-        />
-        <Stack.Screen
-          name="AddUser"
-          component={AddUserScreen}
-          options={{
-            title: 'Add User',
-            headerStyle: { backgroundColor: '#1E293B' },
-            headerTintColor: '#fff',
-          }}
-        />
-        <Stack.Screen
-          name="EditUser"
-          component={EditUserScreen}
-          options={{
-            title: 'Edit User',
-            headerStyle: { backgroundColor: '#1E293B' },
-            headerTintColor: '#fff',
-          }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Stack.Navigator>
+      <Stack.Screen name="Admin" component={DrawerScreens} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="CreateNews"
+        component={CreateNewsScreen}
+        options={{
+          title: 'Create News',
+          headerStyle: { backgroundColor: '#1E293B' },
+          headerTintColor: '#fff',
+        }}
+      />
+      <Stack.Screen
+        name="AddUser"
+        component={AddUserScreen}
+        options={{
+          title: 'Add User',
+          headerStyle: { backgroundColor: '#1E293B' },
+          headerTintColor: '#fff',
+        }}
+      />
+      <Stack.Screen
+        name="EditUser"
+        component={EditUserScreen}
+        options={{
+          title: 'Edit User',
+          headerStyle: { backgroundColor: '#1E293B' },
+          headerTintColor: '#fff',
+        }}
+      />
+    </Stack.Navigator>
   );
 }
