@@ -1,129 +1,105 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
-  Image,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
+  TextInput,
   TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
 } from "react-native";
-import { TextInput, Button } from "react-native-paper";
-import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation } from "@react-navigation/native";
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen() {
+  const navigation = useNavigation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 1200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-
   const handleLogin = () => {
-    if (username.trim() === "" || password.trim() === "") {
-      alert("Please enter both username and password");
-      return;
-    }
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+  if (username.trim() === "" || password.trim() === "") {
+    alert("Please enter both username and password");
+    return;
+  }
+
+  setLoading(true);
+  setTimeout(() => {
+    setLoading(false);
+
+    if (username === "admin" && password === "admin123") {
       navigation.replace("AdminDrawer");
-    }, 1000);
-  };
+    } else if (username === "editor" && password === "editor123") {
+      navigation.replace("EditorDrawer");
+    } else if (username === "user" && password === "user123") {
+      navigation.replace("UserDrawer");
+    } else {
+      alert("Invalid username or password");
+    }
+  }, 1000);
+};
 
   return (
-    <LinearGradient
-      colors={["#003366", "#004C99", "#0066CC"]}
-      style={styles.container}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.innerContainer}
-      >
-        <Animated.View
-          style={[
-            styles.logoContainer,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
-        >
-          <Image
-            source={require("../assets/logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.title}>InsideTMC</Text>
-        </Animated.View>
+    <View style={styles.container}>
+      <Text style={styles.title}>Welcome Back</Text>
 
-        <Animated.View
-          style={[
-            styles.form,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
-        >
-          <TextInput
-            label="Username"
-            mode="outlined"
-            value={username}
-            onChangeText={setUsername}
-            style={styles.input}
-            autoCapitalize="none"
-            placeholderTextColor="#ccc"
-            theme={{ colors: { primary: "#3B82F6", underlineColor: "transparent", background: "#fff" } }}
-          />
-          <TextInput
-            label="Password"
-            mode="outlined"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            style={styles.input}
-            theme={{ colors: { primary: "#3B82F6", underlineColor: "transparent", background: "#fff" } }}
-          />
+      <TextInput
+        style={styles.input}
+        placeholder="Username"
+        placeholderTextColor="#999"
+        value={username}
+        onChangeText={setUsername}
+      />
 
-          <Button
-            mode="contained"
-            onPress={handleLogin}
-            loading={loading}
-            style={styles.button}
-            contentStyle={{ paddingVertical: 8 }}
-          >
-            Login
-          </Button>
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        placeholderTextColor="#999"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
 
-          <TouchableOpacity onPress={() => alert("Forgot Password?")}>
-            <Text style={styles.forgot}>Forgot Password?</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </KeyboardAvoidingView>
-    </LinearGradient>
+      <TouchableOpacity style={styles.button} onPress={handleLogin}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Login</Text>
+        )}
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  innerContainer: { flex: 1, justifyContent: "center", paddingHorizontal: 25 },
-  logoContainer: { alignItems: "center", marginBottom: 40 },
-  logo: { width: 120, height: 120, marginBottom: 10 },
-  title: { fontSize: 32, fontWeight: "bold", color: "#fff" },
-  form: { width: "100%" },
-  input: { marginBottom: 15, borderRadius: 8 },
-  button: { marginTop: 10, borderRadius: 8, backgroundColor: "#3B82F6" },
-  forgot: { marginTop: 15, color: "#fff", textAlign: "center", fontWeight: "500" },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#0d47a1",
+    paddingHorizontal: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 40,
+  },
+  input: {
+    width: "100%",
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  button: {
+    width: "100%",
+    backgroundColor: "#1976d2",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });

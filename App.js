@@ -6,6 +6,8 @@ import { createStackNavigator } from "@react-navigation/stack";
 import SplashScreen from "./screen/SplashScreen";
 import LoginScreen from "./screen/LoginScreen";
 import AdminDrawerNavigator from "./navigation/AdminDrawerNavigator";
+import EditorDrawerNavigator from "./navigation/EditorDrawerNavigator";
+import UserDrawerNavigator from "./navigation/UserDrawerNavigator";
 
 const Stack = createStackNavigator();
 
@@ -17,6 +19,8 @@ export default function App() {
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="AdminDrawer" component={AdminDrawerNavigator} />
+          <Stack.Screen name="EditorDrawer" component={EditorDrawerNavigator} />
+          <Stack.Screen name="UserDrawer" component={UserDrawerNavigator} />
         </Stack.Navigator>
       </NavigationContainer>
     </PaperProvider>

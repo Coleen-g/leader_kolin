@@ -14,19 +14,16 @@ import {
 import { createStackNavigator } from "@react-navigation/stack";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 
-import DashboardScreen from "../screen/AdminScreen/DashboardScreen";
-import CategoriesScreen from "../screen/AdminScreen/CategoriesScreen";
-import ManageNewsScreen from "../screen/AdminScreen/ManageNewsScreen";
-import ManageUsersScreen from "../screen/AdminScreen/ManageUsersScreen";
-import AddUserScreen from "../screen/AdminScreen/AddUserScreen";
-import EditUserScreen from "../screen/AdminScreen/EditUserScreen";
-import SettingsScreen from "../screen/AdminScreen/SettingsScreen";
-import CreateNewsScreen from "../screen/AdminScreen/CreateNewsScreen";
+import DashboardScreen from "../screen/EditorScreen/EditorDashboardScreen";
+import ManageNewsScreen from "../screen/EditorScreen/ManageArticlesScreen";
+import SettingsScreen from "../screen/EditorScreen/EditorSettingsScreen";
+import CreateNewsScreen from "../screen/EditorScreen/CreateNewsScreen";
+import EditorProfileScreen from "../screen/EditorScreen/EditorProfileScreen";
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
 
-// ✅ Custom Drawer Sidebar Content (below system status bar)
+// ✅ Custom Drawer Sidebar (below system time)
 function CustomDrawerContent(props) {
   const { navigation } = props;
 
@@ -36,7 +33,7 @@ function CustomDrawerContent(props) {
       contentContainerStyle={{
         flex: 1,
         paddingTop:
-          Platform.OS === "android" ? StatusBar.currentHeight + 10 : 40, // ensures padding below system time
+          Platform.OS === "android" ? StatusBar.currentHeight + 10 : 40,
       }}
     >
       {/* Drawer Items */}
@@ -66,7 +63,6 @@ function CustomDrawerContent(props) {
   );
 }
 
-// ✅ Drawer Screens with Fixed Sidebar
 function DrawerScreens() {
   return (
     <Drawer.Navigator
@@ -90,19 +86,6 @@ function DrawerScreens() {
         }}
       />
       <Drawer.Screen
-        name="Categories"
-        component={CategoriesScreen}
-        options={{
-          drawerIcon: ({ color, size }) => (
-            <MaterialCommunityIcons
-              name="shape-outline"
-              size={size}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Drawer.Screen
         name="Manage News"
         component={ManageNewsScreen}
         options={{
@@ -116,11 +99,11 @@ function DrawerScreens() {
         }}
       />
       <Drawer.Screen
-        name="Manage Users"
-        component={ManageUsersScreen}
+        name="Profile"
+        component={EditorProfileScreen}
         options={{
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
+            <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
       />
@@ -137,12 +120,11 @@ function DrawerScreens() {
   );
 }
 
-// ✅ Stack Screens Stay Same
-export default function AdminDrawerNavigator() {
+export default function EditorDrawerNavigator() {
   return (
     <Stack.Navigator>
       <Stack.Screen
-        name="Admin"
+        name="Editor"
         component={DrawerScreens}
         options={{ headerShown: false }}
       />
@@ -151,24 +133,6 @@ export default function AdminDrawerNavigator() {
         component={CreateNewsScreen}
         options={{
           title: "Create News",
-          headerStyle: { backgroundColor: "#1E293B" },
-          headerTintColor: "#fff",
-        }}
-      />
-      <Stack.Screen
-        name="AddUser"
-        component={AddUserScreen}
-        options={{
-          title: "Add User",
-          headerStyle: { backgroundColor: "#1E293B" },
-          headerTintColor: "#fff",
-        }}
-      />
-      <Stack.Screen
-        name="EditUser"
-        component={EditUserScreen}
-        options={{
-          title: "Edit User",
           headerStyle: { backgroundColor: "#1E293B" },
           headerTintColor: "#fff",
         }}
