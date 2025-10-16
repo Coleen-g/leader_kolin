@@ -98,8 +98,9 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 15,
+    marginBottom: 20, // slightly increased spacing
     textAlign: "center",
+    color: "#007bff", // added blue color for better visual
   },
   searchBar: {
     backgroundColor: "white",
