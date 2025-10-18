@@ -129,7 +129,7 @@ export default function EditorDrawerNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="CreateNews"
+        name="CreateNewsScreen"
         component={CreateNewsScreen}
         options={{
           title: "Create News",
