@@ -39,6 +39,18 @@ function CustomDrawerContent(props) {
           Platform.OS === "android" ? StatusBar.currentHeight + 10 : 40, // ensures padding below system time
       }}
     >
+      {/* Drawer Header */}
+      <View style={{ paddingHorizontal: 20, paddingBottom: 18 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: '#7C3AED', justifyContent: 'center', alignItems: 'center' }}>
+            <MaterialCommunityIcons name="newspaper-variant-multiple-outline" size={20} color="#fff" />
+          </View>
+          <View>
+            <Text style={{ color: '#0F172A', fontWeight: '800', fontSize: 18 }}>Campus News</Text>
+            <Text style={{ color: '#64748B', fontSize: 12 }}>Admin Panel</Text>
+          </View>
+        </View>
+      </View>
       {/* Drawer Items */}
       <DrawerItemList {...props} />
 
@@ -72,12 +84,15 @@ function DrawerScreens() {
     <Drawer.Navigator
       drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
-        headerStyle: { backgroundColor: "#1E293B" },
+        headerStyle: { backgroundColor: "#667EEA" },
         headerTintColor: "#fff",
-        drawerActiveBackgroundColor: "#3B82F6",
+        drawerStyle: { backgroundColor: '#F8FAFF', width: 260 },
+        drawerActiveBackgroundColor: "#7C3AED",
         drawerActiveTintColor: "#fff",
-        drawerInactiveTintColor: "#333",
-        drawerLabelStyle: { fontSize: 15 },
+        drawerInactiveTintColor: "#334155",
+        drawerLabelStyle: { fontSize: 15, fontWeight: '700' },
+        sceneContainerStyle: { backgroundColor: '#F0F5FF' },
+        itemStyle: { marginVertical: 4 },
       }}
     >
       <Drawer.Screen
@@ -151,7 +166,7 @@ export default function AdminDrawerNavigator() {
         component={CreateNewsScreen}
         options={{
           title: "Create News",
-          headerStyle: { backgroundColor: "#1E293B" },
+          headerStyle: { backgroundColor: "#667EEA" },
           headerTintColor: "#fff",
         }}
       />
@@ -160,7 +175,7 @@ export default function AdminDrawerNavigator() {
         component={AddUserScreen}
         options={{
           title: "Add User",
-          headerStyle: { backgroundColor: "#1E293B" },
+          headerStyle: { backgroundColor: "#667EEA" },
           headerTintColor: "#fff",
         }}
       />
@@ -169,7 +184,7 @@ export default function AdminDrawerNavigator() {
         component={EditUserScreen}
         options={{
           title: "Edit User",
-          headerStyle: { backgroundColor: "#1E293B" },
+          headerStyle: { backgroundColor: "#667EEA" },
           headerTintColor: "#fff",
         }}
       />

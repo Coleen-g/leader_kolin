@@ -1,100 +1,213 @@
-import React from "react";
-import { View, Text, StyleSheet, SafeAreaView, Image, ScrollView } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useRef, useState, useEffect } from "react";
+import { View, Text, StyleSheet, SafeAreaView, Image, ScrollView, TouchableOpacity, Dimensions, FlatList, Alert, TextInput } from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { db } from "../../firebase/firebaseConfig";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 export default function UserHomeScreen() {
+  const [activeCategory, setActiveCategory] = useState('All news');
+  const [categories, setCategories] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allNews, setAllNews] = useState([]);
+  const [filteredNews, setFilteredNews] = useState([]);
+
+  const carouselRef = useRef(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const slides = [
+    {
+      id: '1',
+      title: 'A ruggedly beautiful quarantine site',
+      image: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=60',
+      time: '2 hours ago'
+    },
+    {
+      id: '2',
+      title: 'City lights and mountain nights',
+      image: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=60',
+      time: '6 hours ago'
+    }
+  ];
+
+  // Fetch categories from Firestore on mount
+  useEffect(() => {
+    const categoriesRef = collection(db, 'categories');
+    const unsubscribe = onSnapshot(
+      query(categoriesRef),
+      (snapshot) => {
+        const categoryNames = snapshot.docs.map((doc) => doc.data().name);
+        setCategories(['All news', ...categoryNames]);
+      },
+      (error) => {
+        console.error('Error fetching categories:', error);
+      }
+    );
+    return unsubscribe;
+  }, []);
+
+  // Fetch approved news from Firestore
+  useEffect(() => {
+    const newsRef = collection(db, 'news');
+    const q = query(newsRef, where('status', '==', 'Approved'));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const newsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          title: doc.data().title,
+          image: doc.data().imageUrl,
+          time: doc.data().createdAt
+            ? new Date(doc.data().createdAt.seconds * 1000).toLocaleDateString()
+            : 'Recently',
+          category: doc.data().category || 'General',
+        }));
+        setAllNews(newsData);
+        setFilteredNews(newsData);
+      },
+      (error) => {
+        console.error('Error fetching news:', error);
+      }
+    );
+    return unsubscribe;
+  }, []);
+
+  // Filter news based on category and search query
+  useEffect(() => {
+    let filtered = allNews;
+
+    // Filter by category
+    if (activeCategory !== 'All news') {
+      filtered = filtered.filter((item) => item.category === activeCategory);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim() !== '') {
+      filtered = filtered.filter((item) =>
+        item.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    setFilteredNews(filtered);
+  }, [activeCategory, searchQuery, allNews]);
+
+  // Use a single FlatList as the main scroll container to avoid nested VirtualizedLists
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* 🔹 Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Welcome Back 👋</Text>
-          <Text style={styles.subHeader}>Stay updated with campus happenings!</Text>
-        </View>
+      <FlatList
+        data={filteredNews}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={() => (
+          <>
+            {/* Search Bar */}
+            <View style={styles.searchBarContainer}>
+              <View style={styles.searchBar}>
+                <Ionicons name="search-outline" size={18} color="#94A3B8" style={{ marginRight: 8 }} />
+                <TextInput
+                  placeholder="Search news..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholderTextColor="#94A3B8"
+                  style={styles.searchInput}
+                  editable={true}
+                />
+              </View>
+            </View>
 
-        {/* 🔹 Featured Banner */}
-        <View style={styles.banner}>
-          <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1584697964403-83b3e6e36b93?auto=format&fit=crop&w=800&q=60",
-            }}
-            style={styles.bannerImage}
-          />
-          <View style={styles.bannerTextContainer}>
-            <Text style={styles.bannerTitle}>InsideTMC News</Text>
-            <Text style={styles.bannerSubtitle}>Your Campus. Your Stories.</Text>
-          </View>
-        </View>
+            {/* Category Tabs */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesRow} contentContainerStyle={{ paddingHorizontal: 16 }}>
+              {categories.map((cat) => (
+                <TouchableOpacity key={cat} onPress={() => setActiveCategory(cat)} style={[styles.catItem, activeCategory === cat && styles.catItemActive]}>
+                  <Text style={[styles.catText, activeCategory === cat && styles.catTextActive]}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
-        {/* 🔹 Quick Access */}
-        <Text style={styles.sectionTitle}>Quick Access</Text>
-        <View style={styles.quickAccessContainer}>
-          <View style={styles.accessCard}>
-            <Ionicons name="book-outline" size={28} color="#3B82F6" />
-            <Text style={styles.accessText}>Courses</Text>
-          </View>
-          <View style={styles.accessCard}>
-            <Ionicons name="megaphone-outline" size={28} color="#3B82F6" />
-            <Text style={styles.accessText}>Announcements</Text>
-          </View>
-          <View style={styles.accessCard}>
-            <Ionicons name="calendar-outline" size={28} color="#3B82F6" />
-            <Text style={styles.accessText}>Events</Text>
-          </View>
-          <View style={styles.accessCard}>
-            <Ionicons name="chatbubbles-outline" size={28} color="#3B82F6" />
-            <Text style={styles.accessText}>Forum</Text>
-          </View>
-        </View>
+            {/* Featured carousel */}
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              ref={carouselRef}
+              onMomentumScrollEnd={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / Dimensions.get('window').width);
+                setActiveSlide(index);
+              }}
+            >
+              {slides.map((s) => (
+                <View key={s.id} style={styles.featureCard}>
+                  <Image source={{ uri: s.image }} style={styles.featureImage} />
+                  <View style={styles.featureOverlay} />
+                  <View style={styles.featureTextWrap}>
+                    <Text style={styles.featureTime}>{s.time}</Text>
+                    <Text style={styles.featureTitle} numberOfLines={2}>{s.title}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <View style={styles.dotsRow}>
+              {slides.map((_, i) => (
+                <View key={i} style={[styles.dot, activeSlide === i && styles.dotActive]} />
+              ))}
+            </View>
 
-        {/* 🔹 News Preview Section */}
-        <Text style={styles.sectionTitle}>Latest News</Text>
-        <View style={styles.newsCard}>
-          <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?auto=format&fit=crop&w=800&q=60",
-            }}
-            style={styles.newsImage}
-          />
-          <View style={styles.newsContent}>
-            <Text style={styles.newsTitle}>TMC Sports Fest 2025 Kicks Off</Text>
-            <Text style={styles.newsDesc}>
-              Excitement fills the air as TMC opens its annual inter-college sports fest!
-            </Text>
-            <Text style={styles.newsDate}>October 11, 2025</Text>
+            {/* Latest news header */}
+            <View style={styles.latestHeaderRow}>
+              <Text style={styles.sectionTitle}>Latest news</Text>
+              <Text style={styles.viewAll}>See all</Text>
+            </View>
+          </>
+        )}
+        renderItem={({ item }) => (
+          <View style={styles.listItem}>
+            {item.image && <Image source={{ uri: item.image }} style={styles.listThumb} />}
+            <View style={styles.listContent}>
+              <Text style={styles.listTitle} numberOfLines={2}>{item.title}</Text>
+              <Text style={styles.listTime}>{item.time}</Text>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        )}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No news found</Text>
+          </View>
+        )}
+      />
     </SafeAreaView>
   );
 }
 
+const { width: WINDOW_WIDTH } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  header: { padding: 20, backgroundColor: "#1E293B", borderBottomLeftRadius: 25, borderBottomRightRadius: 25 },
-  headerTitle: { color: "#fff", fontSize: 22, fontWeight: "bold" },
-  subHeader: { color: "#CBD5E1", marginTop: 4 },
-  banner: { margin: 20, borderRadius: 20, overflow: "hidden", elevation: 4 },
-  bannerImage: { width: "100%", height: 180 },
-  bannerTextContainer: { position: "absolute", bottom: 15, left: 15 },
-  bannerTitle: { color: "#fff", fontSize: 22, fontWeight: "bold" },
-  bannerSubtitle: { color: "#E2E8F0", fontSize: 14 },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", marginHorizontal: 20, marginTop: 20, color: "#1E293B" },
-  quickAccessContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-around", marginTop: 10 },
-  accessCard: {
-    backgroundColor: "#fff",
-    width: "40%",
-    padding: 20,
-    marginVertical: 10,
-    alignItems: "center",
-    borderRadius: 15,
-    elevation: 3,
-  },
-  accessText: { marginTop: 10, fontWeight: "600", color: "#1E293B" },
-  newsCard: { backgroundColor: "#fff", borderRadius: 15, margin: 20, overflow: "hidden", elevation: 4 },
-  newsImage: { width: "100%", height: 180 },
-  newsContent: { padding: 15 },
-  newsTitle: { fontSize: 16, fontWeight: "700", color: "#1E293B" },
-  newsDesc: { color: "#64748B", marginVertical: 5 },
-  newsDate: { color: "#94A3B8", fontSize: 12 },
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  topRow: { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 12 },
+  logoBadge: { backgroundColor: '#FF7A00', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  logoText: { color: '#fff', fontWeight: '700' },
+  searchBarContainer: { paddingHorizontal: 16, paddingVertical: 12 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#E6EEF8', height: 44 },
+  searchInput: { flex: 1, fontSize: 14, color: '#0F172A', marginLeft: 4, padding: 0 },
+  categoriesRow: { marginTop: 4, marginBottom: 12 },
+  catItem: { backgroundColor: '#ffffff', paddingHorizontal: 12, paddingVertical: 8, marginRight: 10, borderRadius: 20, borderWidth: 1, borderColor: '#E6EEF8' },
+  catItemActive: { backgroundColor: '#7C3AED', borderColor: '#7C3AED' },
+  catText: { color: '#334155' },
+  catTextActive: { color: '#fff', fontWeight: '700' },
+  featureCard: { width: WINDOW_WIDTH, alignItems: 'center', paddingVertical: 12 },
+  featureImage: { width: WINDOW_WIDTH - 32, height: 200, borderRadius: 14 },
+  featureOverlay: { position: 'absolute', left: 16, right: 16, top: 12, height: 200, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.18)' },
+  featureTextWrap: { position: 'absolute', left: 28, bottom: 28, right: 28 },
+  featureTime: { color: '#F1F5F9', fontSize: 12, marginBottom: 6 },
+  featureTitle: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  dotsRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E2E8F0', marginHorizontal: 4 },
+  dotActive: { backgroundColor: '#7C3AED', width: 18, borderRadius: 9 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
+  latestHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 18, marginBottom: 12 },
+  viewAll: { color: '#64748B', fontSize: 13 },
+  listItem: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', marginHorizontal: 16, marginVertical: 8, borderRadius: 12, alignItems: 'center', elevation: 2 },
+  listThumb: { width: 72, height: 72, borderRadius: 8 },
+  listContent: { marginLeft: 12, flex: 1 },
+  listTitle: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
+  listTime: { color: '#94A3B8', fontSize: 12, marginTop: 6 },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 },
+  emptyText: { fontSize: 16, color: '#94A3B8' }
 });

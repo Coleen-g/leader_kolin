@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StatusBar,
   Platform,
+  Image,
+  StyleSheet,
 } from "react-native";
 import {
   createDrawerNavigator,
@@ -12,7 +14,9 @@ import {
   DrawerItemList,
 } from "@react-navigation/drawer";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { auth, db } from "../firebase/firebaseConfig";
+import { doc, getDoc } from "firebase/firestore";
 
 // 📱 Import Screens
 import UserHomeScreen from "../screen/UserScreen/UserHomeScreen"; // Home tab
@@ -35,33 +39,62 @@ const Tab = createBottomTabNavigator();
 
 // ✅ Bottom Tabs Navigator
 function UserBottomTabs() {
+  const [userAvatar, setUserAvatar] = useState('https://i.pravatar.cc/100');
+
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser && currentUser.photoURL) {
+          setUserAvatar(currentUser.photoURL);
+        }
+      } catch (error) {
+        console.error('Error fetching avatar:', error);
+      }
+    };
+
+    fetchAvatar();
+  }, []);
+
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
+      screenOptions={({ navigation }) => ({
+        headerShown: true,
+        headerStyle: { backgroundColor: '#fff' },
+        headerTitleAlign: 'center',
+        headerTitle: () => (
+          <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+            <MaterialCommunityIcons name="school" size={26} color="#7C3AED" />
+          </TouchableOpacity>
+        ),
+        headerLeft: () => (
+          <TouchableOpacity style={{ marginLeft: 14 }} onPress={() => navigation.getParent()?.openDrawer()}>
+            <Image
+              source={{ uri: userAvatar }}
+              style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E6EEF8' }}
+            />
+          </TouchableOpacity>
+        ),
+        headerRight: () => (
+          <TouchableOpacity style={{ marginRight: 14 }} onPress={() => navigation.getParent()?.navigate('Settings')}>
+            <Ionicons name="settings-outline" size={22} color="#1E293B" />
+          </TouchableOpacity>
+        ),
         tabBarStyle: {
-          backgroundColor: "#fff",
-          position: "absolute",
-          bottom: 20,
-          left: 20,
-          right: 20,
-          borderRadius: 20,
-          elevation: 8,
+          backgroundColor: '#fff',
           height: 65,
-          shadowColor: "#000",
-          shadowOpacity: 0.15,
-          shadowOffset: { width: 0, height: 5 },
-          shadowRadius: 10,
+          elevation: 8,
         },
-        tabBarActiveTintColor: "#0055FF",
-        tabBarInactiveTintColor: "#888",
-        tabBarLabelStyle: { fontSize: 12, fontWeight: "600", marginBottom: 5 },
-      }}
+        tabBarActiveTintColor: '#0055FF',
+        tabBarInactiveTintColor: '#888',
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600', marginBottom: 5 },
+      })}
     >
       <Tab.Screen
-        name="Home"
+        name="HomeTab"
         component={UserHomeScreen}
         options={{
+          title: 'Home',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={28} color={color} />
           ),
@@ -69,9 +102,10 @@ function UserBottomTabs() {
       />
 
       <Tab.Screen
-        name="News"
+        name="NewsTab"
         component={UserNewsScreen}
         options={{
+          title: 'News',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="newspaper-outline" size={28} color={color} />
           ),
@@ -79,9 +113,10 @@ function UserBottomTabs() {
       />
 
       <Tab.Screen
-        name="Profile"
+        name="ProfileTab"
         component={UserProfileScreen}
         options={{
+          title: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle-outline" size={28} color={color} />
           ),
@@ -94,31 +129,71 @@ function UserBottomTabs() {
 // ✅ Custom Drawer Sidebar
 function CustomDrawerContent(props) {
   const { navigation } = props;
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      setLoading(true);
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            setUser({
+              uid: currentUser.uid,
+              displayName: currentUser.displayName || 'User',
+              username: userDoc.data().username || '@user',
+              email: currentUser.email,
+              photoURL: currentUser.photoURL || 'https://i.pravatar.cc/100',
+              following: userDoc.data().following || 0,
+              followers: userDoc.data().followers || 0,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   return (
     <DrawerContentScrollView
       {...props}
       contentContainerStyle={{
         flex: 1,
-        paddingTop:
-          Platform.OS === "android" ? StatusBar.currentHeight + 10 : 40,
+        paddingTop: 0,
       }}
     >
+      {/* Profile Header */}
+      {user ? (
+        <View style={styles.profileHeader}>
+          <View style={styles.profileTop}>
+            <Image
+              source={{ uri: user.photoURL }}
+              style={styles.profileAvatar}
+            />
+            <TouchableOpacity style={styles.settingsButton}>
+              <Ionicons name="ellipsis-vertical" size={24} color="#1E293B" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.profileName}>{user.displayName}</Text>
+          <Text style={styles.profileUsername}>{user.username}</Text>
+          <View style={styles.divider} />
+        </View>
+      ) : null}
+
       {/* Drawer Items */}
       <DrawerItemList {...props} />
 
       {/* 🚪 Logout Button */}
       <View style={{ flex: 1, justifyContent: "flex-end" }}>
         <TouchableOpacity
-          style={{
-            backgroundColor: "#EF4444",
-            padding: 15,
-            margin: 20,
-            borderRadius: 10,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          style={styles.logoutButton}
           onPress={() => navigation.replace("Login")}
         >
           <Ionicons name="log-out-outline" size={22} color="#fff" />
@@ -137,7 +212,7 @@ export default function UserDrawerNavigator() {
     <Drawer.Navigator
       drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
-        headerShown: true,
+        headerShown: false,
         drawerType: "slide",
         drawerStyle: {
           marginTop: 30,
@@ -185,3 +260,14 @@ export default function UserDrawerNavigator() {
     </Drawer.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  profileHeader: { paddingHorizontal: 16, paddingVertical: 16, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  profileTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
+  profileAvatar: { width: 60, height: 60, borderRadius: 30 },
+  settingsButton: { padding: 8 },
+  profileName: { fontSize: 18, fontWeight: '700', color: '#0F172A', marginBottom: 2 },
+  profileUsername: { fontSize: 13, color: '#64748B', marginBottom: 12 },
+  divider: { height: 1, backgroundColor: '#E2E8F0' },
+  logoutButton: { backgroundColor: '#EF4444', padding: 15, margin: 20, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }
+});

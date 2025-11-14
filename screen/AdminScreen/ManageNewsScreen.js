@@ -1,213 +1,275 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Modal, ScrollView, SafeAreaView } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native'; // ✅ Added for navigation
+import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { db } from '../../firebase/firebaseConfig';
+import { collection, query, where, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 
 export default function ManageNewsScreen() {
-  const navigation = useNavigation(); // ✅ Initialize navigation
+  const navigation = useNavigation();
+  const isFocused = useIsFocused();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState('All');
+  const [newsList, setNewsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedNews, setSelectedNews] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
-  const [newsList, setNewsList] = useState([
-    {
-      id: '1',
-      title: 'Campus Sports Week Highlights',
-      author: 'John Santos',
-      date: 'Oct 10, 2025',
-      image: 'https://picsum.photos/200/120?random=1',
-      status: 'Pending',
-      category: 'Event',
-    },
-    {
-      id: '2',
-      title: 'New Library Facilities Opened',
-      author: 'Maria Cruz',
-      date: 'Oct 09, 2025',
-      image: 'https://picsum.photos/200/120?random=2',
-      status: 'Approved',
-      category: 'Announcement',
-    },
-    {
-      id: '3',
-      title: 'Freshmen Orientation 2025',
-      author: 'Alex Tan',
-      date: 'Oct 07, 2025',
-      image: 'https://picsum.photos/200/120?random=3',
-      status: 'Rejected',
-      category: 'Orientation',
-    },
-  ]);
+  // Fetch only PENDING news from Firebase
+  useEffect(() => {
+    const newsRef = collection(db, 'news');
+    const q = query(newsRef, where('status', '==', 'Pending'));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const newsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          firebaseId: doc.id,
+          ...doc.data(),
+        }));
+        // Sort by createdAt descending
+        newsData.sort((a, b) => {
+          const ta = a.createdAt && a.createdAt.seconds ? a.createdAt.seconds : 0;
+          const tb = b.createdAt && b.createdAt.seconds ? b.createdAt.seconds : 0;
+          return tb - ta;
+        });
+        setNewsList(newsData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching news:', error);
+        setLoading(false);
+      }
+    );
 
-  // Filter + Search logic
-  const filteredNews = newsList.filter(
-    (item) =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (filter === 'All' || item.category === filter)
+    return unsubscribe;
+  }, [isFocused]);
+
+  // Filter by search query
+  const filteredNews = newsList.filter((item) =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleAction = (id, newStatus) => {
-    setNewsList((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
-    );
+  const openNewsDetail = (item) => {
+    setSelectedNews(item);
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setSelectedNews(null);
+  };
+
+  const handleAction = async (id, newStatus) => {
+    setUpdating(true);
+    try {
+      await updateDoc(doc(db, 'news', id), { status: newStatus });
+      closeModal();
+    } catch (error) {
+      console.error('Error updating news:', error);
+      alert('Failed to update news');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <Image source={{ uri: item.image }} style={styles.image} />
-
-      <View style={styles.content}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.meta}>
-          <MaterialCommunityIcons name="account-outline" size={14} color="#64748B" /> {item.author} · {item.date}
-        </Text>
-
-        <View style={styles.statusContainer}>
-          <View
-            style={[
-              styles.statusBadge,
-              item.status === 'Approved'
-                ? styles.approved
-                : item.status === 'Rejected'
-                ? styles.rejected
-                : styles.pending,
-            ]}
-          >
-            <Text style={styles.statusText}>{item.status}</Text>
-          </View>
-        </View>
-
-        {item.status === 'Pending' && (
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.button, styles.approveButton]}
-              onPress={() => handleAction(item.id, 'Approved')}
-            >
-              <MaterialCommunityIcons name="check" size={18} color="#fff" />
-              <Text style={styles.buttonText}>Approve</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.rejectButton]}
-              onPress={() => handleAction(item.id, 'Rejected')}
-            >
-              <MaterialCommunityIcons name="close" size={18} color="#fff" />
-              <Text style={styles.buttonText}>Reject</Text>
-            </TouchableOpacity>
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.9}
+      onPress={() => openNewsDetail(item)}
+    >
+      {item.imageUrl && <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />}
+      <View style={styles.cardContent}>
+        <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.author}>{item.author || 'Unknown'}</Text>
+        <Text style={styles.date}>{item.date || 'Recently'}</Text>
+        {item.category && (
+          <View style={styles.categoryBadge}>
+            <Text style={styles.categoryText}>{item.category}</Text>
           </View>
         )}
       </View>
-    </View>
+      <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
+    </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Manage News</Text>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Manage News</Text>
+        <Text style={styles.headerSubtitle}>Review and approve pending articles</Text>
+      </View>
 
-      {/* 🔍 Search and Filter Bar */}
+      {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#64748B" />
+        <Ionicons name="search-outline" size={20} color="#667EEA" />
         <TextInput
           placeholder="Search news..."
           value={searchQuery}
           onChangeText={setSearchQuery}
           style={styles.searchInput}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor="#CBCBCB"
         />
-
-        {/* Filter button cycles categories */}
-        <TouchableOpacity
-          onPress={() => {
-            if (filter === 'All') setFilter('Event');
-            else if (filter === 'Event') setFilter('Announcement');
-            else if (filter === 'Announcement') setFilter('Orientation');
-            else setFilter('All');
-          }}
-          style={styles.filterButton}
-        >
-          <Ionicons name="filter-outline" size={20} color="#2563EB" />
-          <Text style={styles.filterText}>{filter}</Text>
-        </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={filteredNews}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 80 }}
-        ListEmptyComponent={<Text style={styles.emptyText}>No news found.</Text>}
-      />
+      {loading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+        </View>
+      ) : filteredNews.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <MaterialCommunityIcons name="inbox-outline" size={48} color="#E2E8F0" />
+          <Text style={styles.emptyText}>No pending news</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredNews}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.firebaseId}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, paddingBottom: 20 }}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
-      {/* ➕ Create News Button */}
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => navigation.navigate('CreateNews')} // ✅ Integrated navigation here
+      {/* Modal to show full article */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={closeModal}
       >
-        <Ionicons name="add-circle" size={60} color="#2563EB" />
-      </TouchableOpacity>
-    </View>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={closeModal}>
+              <Ionicons name="chevron-back" size={28} color="#1E293B" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Article</Text>
+            <View style={{ width: 28 }} />
+          </View>
+
+          {selectedNews && (
+            <ScrollView style={styles.modalScroll} contentContainerStyle={{ paddingBottom: 20 }}>
+              {selectedNews.imageUrl && (
+                <Image source={{ uri: selectedNews.imageUrl }} style={styles.modalImage} />
+              )}
+
+              <View style={styles.modalBody}>
+                <Text style={styles.modalNewsTitle}>{selectedNews.title}</Text>
+
+                <View style={styles.modalMeta}>
+                  <Text style={styles.modalAuthor}>{selectedNews.author || 'Unknown'}</Text>
+                  <Text style={styles.modalDate}>{selectedNews.date || 'Recently'}</Text>
+                </View>
+
+                {selectedNews.category && (
+                  <View style={styles.categoryBadgeModal}>
+                    <Text style={styles.categoryTextModal}>{selectedNews.category}</Text>
+                  </View>
+                )}
+
+                <Text style={styles.modalContentText}>
+                  {selectedNews.content}
+                </Text>
+              </View>
+
+              {/* Action buttons */}
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.declineButton]}
+                  onPress={() => handleAction(selectedNews.firebaseId, 'Declined')}
+                  disabled={updating}
+                >
+                  {updating ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="close-circle-outline" size={20} color="#fff" />
+                      <Text style={styles.actionButtonText}>Decline</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.approveButton]}
+                  onPress={() => handleAction(selectedNews.firebaseId, 'Approved')}
+                  disabled={updating}
+                >
+                  {updating ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="check-circle-outline" size={20} color="#fff" />
+                      <Text style={styles.actionButtonText}>Approve</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          )}
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC', padding: 16 },
-  header: { fontSize: 24, fontWeight: '700', color: '#1E293B', marginBottom: 10 },
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  header: { paddingHorizontal: 16, paddingVertical: 12 },
+  headerTitle: { fontSize: 26, fontWeight: '700', color: '#1E293B', marginBottom: 4 },
+  headerSubtitle: { fontSize: 13, color: '#94A3B8' },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { marginTop: 12, fontSize: 16, color: '#94A3B8' },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    elevation: 2,
-    marginBottom: 15,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E6EEF8',
   },
-  searchInput: { flex: 1, marginLeft: 6, fontSize: 14, color: '#1E293B' },
-  filterButton: { flexDirection: 'row', alignItems: 'center', marginLeft: 8 },
-  filterText: { marginLeft: 5, fontWeight: '600', color: '#2563EB' },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 14, color: '#0F172A' },
 
-  // Cards
+  // Card styles
   card: {
+    flexDirection: 'row',
     backgroundColor: '#fff',
     borderRadius: 12,
-    marginBottom: 16,
-    overflow: 'hidden',
-    elevation: 3,
-  },
-  image: { width: '100%', height: 120 },
-  content: { padding: 12 },
-  title: { fontSize: 16, fontWeight: '600', color: '#1E293B', marginBottom: 6 },
-  meta: { fontSize: 13, color: '#64748B', marginBottom: 8 },
-  statusContainer: { marginBottom: 8 },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-  },
-  approved: { backgroundColor: '#DCFCE7' },
-  rejected: { backgroundColor: '#FEE2E2' },
-  pending: { backgroundColor: '#FEF9C3' },
-  statusText: { fontSize: 12, fontWeight: '600', color: '#334155' },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 },
-  button: {
-    flexDirection: 'row',
+    marginVertical: 8,
+    padding: 12,
     alignItems: 'center',
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginLeft: 8,
+    elevation: 2,
   },
-  approveButton: { backgroundColor: '#10B981' },
-  rejectButton: { backgroundColor: '#EF4444' },
-  buttonText: { color: '#fff', fontSize: 13, marginLeft: 5, fontWeight: '600' },
+  cardImage: { width: 80, height: 80, borderRadius: 8 },
+  cardContent: { marginLeft: 12, flex: 1 },
+  title: { fontSize: 14, fontWeight: '700', color: '#0F172A', marginBottom: 4 },
+  author: { fontSize: 12, color: '#64748B', marginBottom: 2 },
+  date: { fontSize: 11, color: '#94A3B8', marginBottom: 6 },
+  categoryBadge: { backgroundColor: '#EEF2FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' },
+  categoryText: { color: '#7C3AED', fontSize: 11, fontWeight: '700' },
 
-  // Floating button
-  addButton: {
-    position: 'absolute',
-    bottom: 25,
-    right: 25,
-    elevation: 6,
-  },
-  emptyText: { textAlign: 'center', color: '#94A3B8', marginTop: 30 },
+  // Modal
+  modalContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B' },
+  modalScroll: { flex: 1 },
+  modalImage: { width: '100%', height: 240 },
+  modalBody: { paddingHorizontal: 16, paddingTop: 16 },
+  modalNewsTitle: { fontSize: 20, fontWeight: '700', color: '#1E293B', marginBottom: 12 },
+  modalMeta: { flexDirection: 'row', marginBottom: 12, alignItems: 'center' },
+  modalAuthor: { fontSize: 13, fontWeight: '700', color: '#0F172A', marginRight: 12 },
+  modalDate: { fontSize: 12, color: '#94A3B8' },
+  categoryBadgeModal: { backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 16 },
+  categoryTextModal: { color: '#7C3AED', fontSize: 12, fontWeight: '700' },
+  modalContentText: { fontSize: 15, lineHeight: 22, color: '#475569' },
+  actionButtons: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 16, gap: 12 },
+  actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, gap: 8 },
+  declineButton: { backgroundColor: '#EF4444' },
+  approveButton: { backgroundColor: '#10B981' },
+  actionButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

@@ -1,116 +1,221 @@
-import React from "react";
-import { View, Text, TouchableOpacity, FlatList, Image, StyleSheet } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-
-const newsData = [
-  {
-    id: "1",
-    title: "TMC Launches New Digital Library",
-    date: "October 10, 2025",
-    image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1",
-    description: "Students can now access books and journals online anytime, anywhere.",
-  },
-  {
-    id: "2",
-    title: "Campus Clean-Up Drive Successful",
-    date: "October 8, 2025",
-    image: "https://images.unsplash.com/photo-1581092160607-2c8e90a1a43c",
-    description: "Over 200 volunteers joined the environmental initiative around the TMC campus.",
-  },
-  {
-    id: "3",
-    title: "TMC Dance Crew Wins Regional Competition",
-    date: "October 6, 2025",
-    image: "https://images.unsplash.com/photo-1515165562835-c4c1b235f407",
-    description: "The TMC Rhythm Squad brought home the gold trophy in this year's ALCU competition.",
-  },
-];
+import React, { useEffect, useState, useRef } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  Image,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  TextInput,
+  Dimensions,
+} from "react-native";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import { db, auth } from "../../firebase/firebaseConfig";
+import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function UserNewsScreen({ navigation }) {
+  const [allNews, setAllNews] = useState([]);
+  const [filteredNews, setFilteredNews] = useState([]);
+  const [userUid, setUserUid] = useState(null);
+  const [authorAvatar, setAuthorAvatar] = useState('https://i.pravatar.cc/100');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('All news');
+
+  
+
+  // listen for auth changes to get current user uid and avatar
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (u) {
+        setUserUid(u.uid);
+        setAuthorAvatar(u.photoURL || 'https://i.pravatar.cc/100');
+      } else {
+        setUserUid(null);
+        setAuthorAvatar('https://i.pravatar.cc/100');
+        setAllNews([]);
+        setFilteredNews([]);
+      }
+    });
+    return unsub;
+  }, []);
+
+  // fetch only news created by the current user
+  // fetch all approved news (global feed) and sort client-side
+  useEffect(() => {
+    const newsRef = collection(db, "news");
+    const q = query(newsRef, where("status", "==", "Approved"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const news = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        title: doc.data().title,
+        image: doc.data().imageUrl || doc.data().image || null,
+        date: doc.data().createdAt ? new Date(doc.data().createdAt.seconds * 1000).toLocaleDateString() : "",
+        description: doc.data().content || doc.data().description || "",
+        category: doc.data().category || "General",
+        authorName: doc.data().author || doc.data().authorName || 'Unknown',
+        authorAvatar: doc.data().authorAvatar || doc.data().authorPhotoURL || null,
+        raw: doc.data(),
+      }));
+      // sort client-side by createdAt desc
+      news.sort((a, b) => {
+        const ta = a.raw && a.raw.createdAt && a.raw.createdAt.seconds ? a.raw.createdAt.seconds : 0;
+        const tb = b.raw && b.raw.createdAt && b.raw.createdAt.seconds ? b.raw.createdAt.seconds : 0;
+        return tb - ta;
+      });
+      setAllNews(news);
+      setFilteredNews(news);
+    }, (error) => console.error("Error fetching news:", error));
+
+    return unsubscribe;
+  }, []);
+
+  // fetch categories (optional) so chips don't error when rendered
+  useEffect(() => {
+    const categoriesRef = collection(db, 'categories');
+    const unsub = onSnapshot(categoriesRef, (snap) => {
+      const cats = snap.docs.map((d) => d.data().name);
+      setCategories(['All news', ...cats]);
+    }, (err) => {
+      console.error('Error fetching categories:', err);
+      setCategories(['All news']);
+    });
+    return unsub;
+  }, []);
+
+  // apply client-side filtering (category + search)
+  useEffect(() => {
+    let filtered = allNews;
+    if (activeCategory && activeCategory !== 'All news') {
+      filtered = filtered.filter((n) => n.category === activeCategory);
+    }
+    if (searchQuery && searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter((n) => (n.title && n.title.toLowerCase().includes(q)) || (n.description && n.description.toLowerCase().includes(q)));
+    }
+    setFilteredNews(filtered);
+  }, [allNews, activeCategory, searchQuery]);
+
   const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.9}
-      onPress={() => navigation.navigate("NewsDetail", { news: item })}
-    >
-      <Image source={{ uri: item.image }} style={styles.image} />
-      <View style={styles.cardContent}>
-        <Text style={styles.title}>{item.title}</Text>
-        <View style={styles.metaRow}>
-          <MaterialCommunityIcons name="calendar" size={16} color="#6B7280" />
-          <Text style={styles.date}>{item.date}</Text>
+    <TouchableOpacity style={styles.listCard} activeOpacity={0.9} onPress={() => navigation.navigate("NewsDetail", { news: item })}>
+      {item.image ? (
+        <Image source={{ uri: item.image }} style={styles.listThumb} />
+      ) : (
+        <View style={[styles.listThumb, { backgroundColor: '#E6EEF8', justifyContent: 'center', alignItems: 'center' }]}>
+          <MaterialCommunityIcons name="image-off-outline" size={28} color="#94A3B8" />
         </View>
-        <Text style={styles.description}>{item.description}</Text>
+      )}
+      <View style={styles.listContent}>
+        <View style={styles.rowTop}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Image source={{ uri: item.authorAvatar || 'https://i.pravatar.cc/100' }} style={styles.metaAvatar} />
+            <View style={{ marginLeft: 8 }}>
+              <Text style={styles.metaAuthor}>{item.authorName}</Text>
+              <Text style={styles.listTime}>{item.date}</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="bookmark-outline" size={22} color="#64748B" />
+        </View>
+
+        <Text style={styles.listTitle} numberOfLines={2}>{item.title}</Text>
+        <View style={styles.footerRow}>
+          {item.category ? <View style={styles.categoryBadge}><Text style={styles.categoryText}>{item.category}</Text></View> : null}
+        </View>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.headerTitle}>📰 Campus News</Text>
+    <SafeAreaView style={styles.container}>
       <FlatList
-        data={newsData}
-        renderItem={renderItem}
+        data={filteredNews}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        ListHeaderComponent={() => (
+          <>
+            <View style={styles.headerWrap}>
+              <Text style={styles.headerTitle}>Discover</Text>
+              <Text style={styles.headerSubtitle}>News from around the world</Text>
+            </View>
+
+            <View style={styles.searchBarContainer}>
+              <View style={styles.searchBar}>
+                <Ionicons name="search-outline" size={18} color="#94A3B8" style={{ marginRight: 8 }} />
+                <TextInput placeholder="Search news..." value={searchQuery} onChangeText={setSearchQuery} placeholderTextColor="#94A3B8" style={styles.searchInput} />
+              </View>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesRow} contentContainerStyle={{ paddingHorizontal: 16 }}>
+              {categories.map((cat) => (
+                <TouchableOpacity key={cat} onPress={() => setActiveCategory(cat)} style={[styles.catItem, activeCategory === cat && styles.catItemActive]}>
+                  <Text style={[styles.catText, activeCategory === cat && styles.catTextActive]}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            
+
+            <View style={styles.latestHeaderRow}>
+              <Text style={styles.sectionTitle}>Latest news</Text>
+              <Text style={styles.viewAll}>See all</Text>
+            </View>
+          </>
+        )}
+        renderItem={renderItem}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No news found</Text>
+          </View>
+        )}
+        contentContainerStyle={{ paddingBottom: 30 }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
+const { width: WINDOW_WIDTH } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
-    paddingHorizontal: 16,
-    paddingTop: 10,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#1D4ED8",
-    marginBottom: 16,
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: "hidden",
-    elevation: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  image: {
-    width: "100%",
-    height: 180,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  cardContent: {
-    padding: 16,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 6,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  date: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginLeft: 6,
-  },
-  description: {
-    fontSize: 14,
-    color: "#4B5563",
-    lineHeight: 22,
-  },
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  headerWrap: { paddingHorizontal: 16, paddingTop: 12 },
+  headerTitle: { fontSize: 26, fontWeight: '700', color: '#1D4ED8', marginBottom: 12 },
+  headerSubtitle: { fontSize: 13, color: '#94A3B8', marginTop: -8, marginBottom: 12 },
+  searchBarContainer: { paddingHorizontal: 16, paddingVertical: 8 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#E6EEF8', height: 44 },
+  searchInput: { flex: 1, fontSize: 14, color: '#0F172A', marginLeft: 4, padding: 0 },
+  categoriesRow: { marginTop: 4, marginBottom: 12 },
+  catItem: { backgroundColor: '#ffffff', paddingHorizontal: 12, paddingVertical: 8, marginRight: 10, borderRadius: 20, borderWidth: 1, borderColor: '#E6EEF8' },
+  catItemActive: { backgroundColor: '#7C3AED', borderColor: '#7C3AED' },
+  catText: { color: '#334155' },
+  catTextActive: { color: '#fff', fontWeight: '700' },
+  featureCard: { width: WINDOW_WIDTH, alignItems: 'center', paddingVertical: 12 },
+  featureImage: { width: WINDOW_WIDTH - 32, height: 180, borderRadius: 14 },
+  featureOverlay: { position: 'absolute', left: 16, right: 16, top: 12, height: 180, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.18)' },
+  featureTextWrap: { position: 'absolute', left: 28, bottom: 20, right: 28 },
+  featureTime: { color: '#F1F5F9', fontSize: 12, marginBottom: 6 },
+  featureTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  dotsRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E2E8F0', marginHorizontal: 4 },
+  dotActive: { backgroundColor: '#7C3AED', width: 18, borderRadius: 9 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
+  latestHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 18, marginBottom: 12 },
+  viewAll: { color: '#64748B', fontSize: 13 },
+  listCard: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', marginHorizontal: 16, marginVertical: 8, borderRadius: 12, alignItems: 'flex-start', elevation: 2 },
+  listThumb: { width: 84, height: 84, borderRadius: 8 },
+  listContent: { marginLeft: 12, flex: 1 },
+  listTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  listTime: { color: '#94A3B8', fontSize: 12 },
+  metaRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  metaAvatar: { width: 28, height: 28, borderRadius: 14 },
+  metaAuthor: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
+  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  footerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  categoryBadge: { marginTop: 8, backgroundColor: '#EEF2FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start' },
+  categoryText: { color: '#7C3AED', fontSize: 12, fontWeight: '700' },
+  excerpt: { marginTop: 8, color: '#475569', fontSize: 13, lineHeight: 18 },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 },
+  emptyText: { fontSize: 16, color: '#94A3B8' },
 });

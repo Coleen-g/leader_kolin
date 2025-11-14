@@ -1,33 +1,99 @@
-import React from "react";
-import { View, Text, StyleSheet, SafeAreaView, Image, TouchableOpacity } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, SafeAreaView, Image, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { auth, db } from "../../firebase/firebaseConfig";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
-export default function UserProfileScreen() {
+export default function UserProfileScreen({ navigation }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (!u) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const fetchUserDoc = async () => {
+        setLoading(true);
+        try {
+          const userRef = doc(db, "users", u.uid);
+          const snap = await getDoc(userRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            setUser({
+              uid: u.uid,
+              displayName: u.displayName || data.displayName || data.name || 'User',
+              email: u.email || data.email,
+              username: data.username || data.handle || '@user',
+              photoURL: data.photoURL || data.avatar || u.photoURL || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+              followers: data.followers || 0,
+              following: data.following || 0,
+            });
+          } else {
+            // If user doc doesn't exist, fall back to auth info
+            setUser({
+              uid: u.uid,
+              displayName: u.displayName || u.email || 'User',
+              email: u.email,
+              username: '@user',
+              photoURL: u.photoURL || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+              followers: 0,
+              following: 0,
+            });
+          }
+        } catch (err) {
+          console.error('Error fetching user doc:', err);
+          setUser({
+            uid: u.uid,
+            displayName: u.displayName || u.email || 'User',
+            email: u.email,
+            username: '@user',
+            photoURL: u.photoURL || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+            followers: 0,
+            following: 0,
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchUserDoc();
+    });
+
+    return () => unsub();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* 🔹 Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Profile</Text>
-      </View>
-
-      {/* 🔹 Profile Info */}
+     
+      {/* Profile Info */}
       <View style={styles.profileCard}>
-        <Image
-          source={{
-            uri: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
-          }}
-          style={styles.avatar}
-        />
-        <Text style={styles.name}>Colleen Gonzales</Text>
-        <Text style={styles.email}>coleen.gonzales@tmc.edu.ph</Text>
+        <Image source={{ uri: user?.photoURL }} style={styles.avatar} />
+        <Text style={styles.name}>{user?.displayName}</Text>
+        <Text style={styles.username}>{user?.username}</Text>
+        <Text style={styles.email}>{user?.email}</Text>
 
-        <TouchableOpacity style={styles.editButton}>
+        
+
+        <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('EditUser', { uid: user?.uid })}>
           <Ionicons name="pencil-outline" size={18} color="#fff" />
           <Text style={styles.editText}>Edit Profile</Text>
         </TouchableOpacity>
       </View>
 
-      {/* 🔹 Account Settings */}
+      {/* Account Settings */}
       <View style={styles.settingsContainer}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
 
@@ -51,14 +117,11 @@ export default function UserProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC" },
   header: {
-    backgroundColor: "#1E293B",
-    paddingVertical: 20,
+    backgroundColor: 'transparent',
+    paddingVertical: 12,
     paddingHorizontal: 15,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    elevation: 3,
   },
-  headerTitle: { color: "#fff", fontSize: 22, fontWeight: "bold" },
+  headerTitle: { color: '#0F172A', fontSize: 22, fontWeight: 'bold' },
   profileCard: {
     backgroundColor: "#fff",
     margin: 20,
