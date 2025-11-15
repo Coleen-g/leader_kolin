@@ -108,16 +108,6 @@ export default function LoginScreen() {
             />
           </View>
 
-          {/* Forgot Password & Remember Me */}
-          <View style={styles.optionsRow}>
-            <TouchableOpacity>
-              <Text style={styles.rememberText}>Remember me</Text>
-            </TouchableOpacity>
-            <TouchableOpacity>
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </TouchableOpacity>
-          </View>
-
           {/* Login Button */}
           <TouchableOpacity 
             style={[styles.button, loading && { opacity: 0.7 }]} 
@@ -130,30 +120,6 @@ export default function LoginScreen() {
               <Text style={styles.buttonText}>Login</Text>
             )}
           </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={styles.divider} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.divider} />
-          </View>
-
-          {/* Social Sign In */}
-          <View style={styles.socialContainer}>
-            <TouchableOpacity style={styles.socialIcon}>
-              <MaterialCommunityIcons name="facebook" size={24} color="#1877F2" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialIcon}>
-              <MaterialCommunityIcons name="linkedin" size={24} color="#0A66C2" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialIcon}>
-              <MaterialCommunityIcons name="facebook-messenger" size={24} color="#00B2FF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialIcon}>
-              <MaterialCommunityIcons name="google" size={24} color="#EA4335" />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.socialText}>Sign in with another account</Text>
 
           {/* Sign Up Link */}
           <View style={styles.signUpContainer}>
@@ -222,21 +188,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#1E293B",
   },
-  optionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  rememberText: {
-    fontSize: 12,
-    color: "#64748B",
-  },
-  forgotText: {
-    fontSize: 12,
-    color: "#7C3AED",
-    fontWeight: "600",
-  },
   button: {
     width: "100%",
     backgroundColor: "#667EEA",
@@ -250,44 +201,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 16,
-  },
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 20,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#E2E8F0",
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: "#94A3B8",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  socialContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-    marginBottom: 12,
-  },
-  socialIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  socialText: {
-    textAlign: "center",
-    color: "#94A3B8",
-    fontSize: 11,
-    marginBottom: 16,
   },
   signUpContainer: {
     flexDirection: "row",

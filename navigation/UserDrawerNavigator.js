@@ -14,6 +14,7 @@ import {
   DrawerItemList,
 } from "@react-navigation/drawer";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createStackNavigator } from "@react-navigation/stack";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { auth, db } from "../firebase/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
@@ -22,20 +23,95 @@ import { doc, getDoc } from "firebase/firestore";
 import UserHomeScreen from "../screen/UserScreen/UserHomeScreen"; // Home tab
 import UserNewsScreen from "../screen/UserScreen/UserNewsScreen"; // News tab
 import UserSettingsScreen from "../screen/UserScreen/UserSettingsScreen";
+import AboutScreen from "../screen/UserScreen/AboutScreen"; // About screen
 import HelpScreen from "../screen/UserScreen/HelpScreen";
 import UserProfileScreen from "../screen/UserScreen/UserProfileScreen";
-
-// Placeholder for Notifications (optional)
-function NotificationsScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text style={{ fontSize: 18, fontWeight: "500" }}>Notifications</Text>
-    </View>
-  );
-}
+import FavoritesScreen from "../screen/UserScreen/FavoritesScreen"; // Favorites tab
+import NewsDetailScreen from "../screen/UserScreen/NewsDetailScreen"; // News detail
+import EventDetailScreen from "../screen/UserScreen/EventDetailScreen"; // Event detail (user version)
 
 const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
+
+// ✅ News Stack Navigator (for News + NewsDetail)
+function NewsStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen
+        name="UserNewsList"
+        component={UserNewsScreen}
+      />
+      <Stack.Screen
+        name="NewsDetail"
+        component={NewsDetailScreen}
+      />
+      <Stack.Screen
+        name="EventDetail"
+        component={EventDetailScreen}
+      />
+    </Stack.Navigator>
+  );
+}
+
+// ✅ Favorites Stack Navigator (for Favorites + NewsDetail)
+function FavoritesStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen
+        name="FavoritesList"
+        component={FavoritesScreen}
+      />
+      <Stack.Screen
+        name="NewsDetailFromFav"
+        component={NewsDetailScreen}
+      />
+    </Stack.Navigator>
+  );
+}
+
+// ✅ Settings Stack Navigator (for Settings + About)
+function SettingsStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen
+        name="SettingsMain"
+        component={UserSettingsScreen}
+      />
+      <Stack.Screen
+        name="About"
+        component={AboutScreen}
+        options={({ navigation }) => ({
+          headerShown: true,
+          headerStyle: { backgroundColor: '#7C3AED' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: '700', fontSize: 20 },
+          title: 'About Campus News',
+          headerLeft: () => (
+            <TouchableOpacity 
+              style={{ marginLeft: 14, padding: 8 }}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="chevron-back" size={28} color="#fff" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
+    </Stack.Navigator>
+  );
+}
 
 // ✅ Bottom Tabs Navigator
 function UserBottomTabs() {
@@ -103,11 +179,22 @@ function UserBottomTabs() {
 
       <Tab.Screen
         name="NewsTab"
-        component={UserNewsScreen}
+        component={NewsStack}
         options={{
           title: 'News',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="newspaper-outline" size={28} color={color} />
+          ),
+        }}
+      />
+
+      <Tab.Screen
+        name="FavoritesTab"
+        component={FavoritesStack}
+        options={{
+          title: 'Favorites',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="bookmark-outline" size={28} color={color} />
           ),
         }}
       />
@@ -240,7 +327,7 @@ export default function UserDrawerNavigator() {
 
       <Drawer.Screen
         name="Settings"
-        component={UserSettingsScreen}
+        component={SettingsStack}
         options={{
           drawerIcon: ({ color, size }) => (
             <Ionicons name="settings-outline" size={26} color={color} />

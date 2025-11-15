@@ -22,6 +22,9 @@ import AddUserScreen from "../screen/AdminScreen/AddUserScreen";
 import EditUserScreen from "../screen/AdminScreen/EditUserScreen";
 import SettingsScreen from "../screen/AdminScreen/SettingsScreen";
 import CreateNewsScreen from "../screen/AdminScreen/CreateNewsScreen";
+import EventDetailScreen from "../screen/AdminScreen/EventDetailScreen";
+import AddEventScreen from "../screen/AdminScreen/AddEventScreen";
+import EventAttendeesScreen from "../screen/AdminScreen/EventAttendeesScreen";
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
@@ -166,6 +169,33 @@ export default function AdminDrawerNavigator() {
         component={CreateNewsScreen}
         options={{
           title: "Create News",
+          headerStyle: { backgroundColor: "#667EEA" },
+          headerTintColor: "#fff",
+        }}
+      />
+      <Stack.Screen
+        name="AddEvent"
+        component={AddEventScreen}
+        options={{
+          title: "Add Event",
+          headerStyle: { backgroundColor: "#667EEA" },
+          headerTintColor: "#fff",
+        }}
+      />
+      <Stack.Screen
+        name="EventDetail"
+        component={EventDetailScreen}
+        options={{
+          title: "Event Details",
+          headerStyle: { backgroundColor: "#667EEA" },
+          headerTintColor: "#fff",
+        }}
+      />
+      <Stack.Screen
+        name="EventAttendees"
+        component={EventAttendeesScreen}
+        options={{
+          title: "Event Attendees",
           headerStyle: { backgroundColor: "#667EEA" },
           headerTintColor: "#fff",
         }}

@@ -9,22 +9,25 @@ import RegisterScreen from "./screen/RegisterScreen";
 import AdminDrawerNavigator from "./navigation/AdminDrawerNavigator";
 import EditorDrawerNavigator from "./navigation/EditorDrawerNavigator";
 import UserDrawerNavigator from "./navigation/UserDrawerNavigator";
+import { AppProvider } from "./context/AppContext";
 
 const Stack = createStackNavigator();
 
 export default function App() {
   return (
-    <PaperProvider>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Splash" component={SplashScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="AdminDrawer" component={AdminDrawerNavigator} />
-          <Stack.Screen name="EditorDrawer" component={EditorDrawerNavigator} />
-          <Stack.Screen name="UserDrawer" component={UserDrawerNavigator} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </PaperProvider>
+    <AppProvider>
+      <PaperProvider>
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Splash" component={SplashScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="AdminDrawer" component={AdminDrawerNavigator} />
+            <Stack.Screen name="EditorDrawer" component={EditorDrawerNavigator} />
+            <Stack.Screen name="UserDrawer" component={UserDrawerNavigator} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </PaperProvider>
+    </AppProvider>
   );
 }

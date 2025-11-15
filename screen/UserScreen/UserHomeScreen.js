@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { View, Text, StyleSheet, SafeAreaView, Image, ScrollView, TouchableOpacity, Dimensions, FlatList, Alert, TextInput } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { db } from "../../firebase/firebaseConfig";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 
@@ -16,14 +17,14 @@ export default function UserHomeScreen() {
   const slides = [
     {
       id: '1',
-      title: 'A ruggedly beautiful quarantine site',
-      image: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=60',
-      time: '2 hours ago'
+      title: 'A historic center of learning and community growth.',
+      image: require('../../assets/tmc.jpg'), // Change to your actual image name
+     
     },
     {
       id: '2',
       title: 'City lights and mountain nights',
-      image: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=60',
+      image: require('../../assets/tmc.jpg'), // Change to your actual image name
       time: '6 hours ago'
     }
   ];
@@ -135,10 +136,14 @@ export default function UserHomeScreen() {
             >
               {slides.map((s) => (
                 <View key={s.id} style={styles.featureCard}>
-                  <Image source={{ uri: s.image }} style={styles.featureImage} />
-                  <View style={styles.featureOverlay} />
+                  <Image source={s.image} style={styles.featureImage} />
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={styles.featureGradient}
+                  />
                   <View style={styles.featureTextWrap}>
-                    <Text style={styles.featureTime}>{s.time}</Text>
                     <Text style={styles.featureTitle} numberOfLines={2}>{s.title}</Text>
                   </View>
                 </View>
@@ -193,6 +198,7 @@ const styles = StyleSheet.create({
   catTextActive: { color: '#fff', fontWeight: '700' },
   featureCard: { width: WINDOW_WIDTH, alignItems: 'center', paddingVertical: 12 },
   featureImage: { width: WINDOW_WIDTH - 32, height: 200, borderRadius: 14 },
+  featureGradient: { position: 'absolute', left: 16, right: 16, top: 12, height: 200, borderRadius: 14 },
   featureOverlay: { position: 'absolute', left: 16, right: 16, top: 12, height: 200, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.18)' },
   featureTextWrap: { position: 'absolute', left: 28, bottom: 28, right: 28 },
   featureTime: { color: '#F1F5F9', fontSize: 12, marginBottom: 6 },

@@ -16,10 +16,12 @@ export default function ManageNewsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [updating, setUpdating] = useState(false);
 
-  // Fetch only PENDING news from Firebase
+  // Fetch news with statuses Approved, Pending, Declined/Rejected from Firebase
   useEffect(() => {
     const newsRef = collection(db, 'news');
-    const q = query(newsRef, where('status', '==', 'Pending'));
+    // include common status spellings to be safe
+    const statuses = ['Pending', 'Approved', 'Declined', 'Rejected'];
+    const q = query(newsRef, where('status', 'in', statuses));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -52,8 +54,14 @@ export default function ManageNewsScreen() {
   );
 
   const openNewsDetail = (item) => {
-    setSelectedNews(item);
-    setModalVisible(true);
+    // If it's an event, go directly to EventDetail screen
+    if (item.eventId) {
+      navigation.navigate('EventDetail', { eventId: item.eventId });
+    } else {
+      // Otherwise show modal for regular news
+      setSelectedNews(item);
+      setModalVisible(true);
+    }
   };
 
   const closeModal = () => {
@@ -85,6 +93,11 @@ export default function ManageNewsScreen() {
         <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.author}>{item.author || 'Unknown'}</Text>
         <Text style={styles.date}>{item.date || 'Recently'}</Text>
+        {item.status && (
+          <View style={[styles.statusBadge, item.status === 'Approved' ? styles.statusApproved : item.status === 'Pending' ? styles.statusPending : styles.statusDeclined]}>
+            <Text style={styles.statusText}>{item.status}</Text>
+          </View>
+        )}
         {item.category && (
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryText}>{item.category}</Text>
@@ -174,7 +187,8 @@ export default function ManageNewsScreen() {
                 </Text>
               </View>
 
-              {/* Action buttons */}
+              {/* Action buttons - only show for regular news, not events */}
+              {!selectedNews.eventId && (
               <View style={styles.actionButtons}>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.declineButton]}
@@ -206,10 +220,36 @@ export default function ManageNewsScreen() {
                   )}
                 </TouchableOpacity>
               </View>
+              )}
+
+              {/* View Event button - show for events */}
+              {selectedNews.eventId && (
+              <TouchableOpacity
+                style={styles.viewEventButton}
+                onPress={() => {
+                  closeModal();
+                  navigation.navigate('EventDetail', { eventId: selectedNews.eventId });
+                }}
+              >
+                <MaterialCommunityIcons name="calendar-check" size={20} color="#fff" />
+                <Text style={styles.viewEventButtonText}>View Event Details</Text>
+              </TouchableOpacity>
+              )}
             </ScrollView>
           )}
         </SafeAreaView>
       </Modal>
+
+      {/* Floating Create (+) button */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('CreateNews')}
+        activeOpacity={0.9}
+      >
+        <View style={styles.fabInner}>
+          <MaterialCommunityIcons name="plus" size={28} color="#fff" />
+        </View>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -272,4 +312,31 @@ const styles = StyleSheet.create({
   declineButton: { backgroundColor: '#EF4444' },
   approveButton: { backgroundColor: '#10B981' },
   actionButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  viewEventButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#7C3AED', borderRadius: 12, paddingVertical: 14, marginTop: 16, gap: 8 },
+  viewEventButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  statusBadge: { marginTop: 6, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  statusText: { color: '#fff', fontWeight: '700', fontSize: 11 },
+  statusApproved: { backgroundColor: '#10B981' },
+  statusPending: { backgroundColor: '#F59E0B' },
+  statusDeclined: { backgroundColor: '#EF4444' },
+  /* Floating action button */
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 28,
+    zIndex: 50,
+  },
+  fabInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#7C3AED',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 8,
+  },
 });

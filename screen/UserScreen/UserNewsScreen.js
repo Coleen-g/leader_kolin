@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { db, auth } from "../../firebase/firebaseConfig";
-import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 export default function UserNewsScreen({ navigation }) {
@@ -24,24 +24,79 @@ export default function UserNewsScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState('All news');
-
-  
-
+  const [bookmarkedNews, setBookmarkedNews] = useState([]);
   // listen for auth changes to get current user uid and avatar
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       if (u) {
         setUserUid(u.uid);
         setAuthorAvatar(u.photoURL || 'https://i.pravatar.cc/100');
+        // Fetch user's bookmarked news
+        fetchBookmarkedNews(u.uid);
       } else {
         setUserUid(null);
         setAuthorAvatar('https://i.pravatar.cc/100');
         setAllNews([]);
         setFilteredNews([]);
+        setBookmarkedNews([]);
       }
     });
     return unsub;
   }, []);
+
+  // Fetch bookmarked news IDs from user document
+  const fetchBookmarkedNews = async (uid) => {
+    try {
+      const userDocRef = doc(db, 'users', uid);
+      const unsub = onSnapshot(userDocRef, (snap) => {
+        if (snap.exists()) {
+          const bookmarks = snap.data().favorites || [];
+          setBookmarkedNews(bookmarks);
+        } else {
+          setBookmarkedNews([]);
+        }
+      });
+      return unsub;
+    } catch (error) {
+      console.error('Error fetching bookmarks:', error);
+    }
+  };
+
+  // Toggle bookmark for a news item
+  const toggleBookmark = async (newsItem) => {
+    try {
+      if (!userUid) return;
+      const userDocRef = doc(db, 'users', userUid);
+      
+      // Check if user document exists
+      const userSnap = await getDoc(userDocRef);
+      
+      if (!userSnap.exists()) {
+        // Create user document if it doesn't exist
+        await setDoc(userDocRef, {
+          favorites: [newsItem.id]
+        }, { merge: true });
+        setBookmarkedNews([newsItem.id]);
+      } else {
+        // Document exists, update it
+        if (bookmarkedNews.includes(newsItem.id)) {
+          // Remove from bookmarks
+          await updateDoc(userDocRef, {
+            favorites: arrayRemove(newsItem.id)
+          });
+          setBookmarkedNews(bookmarkedNews.filter(id => id !== newsItem.id));
+        } else {
+          // Add to bookmarks
+          await updateDoc(userDocRef, {
+            favorites: arrayUnion(newsItem.id)
+          });
+          setBookmarkedNews([...bookmarkedNews, newsItem.id]);
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling bookmark:', error);
+    }
+  };
 
   // fetch only news created by the current user
   // fetch all approved news (global feed) and sort client-side
@@ -100,7 +155,18 @@ export default function UserNewsScreen({ navigation }) {
   }, [allNews, activeCategory, searchQuery]);
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.listCard} activeOpacity={0.9} onPress={() => navigation.navigate("NewsDetail", { news: item })}>
+    <TouchableOpacity
+      style={styles.listCard}
+      activeOpacity={0.9}
+      onPress={() => {
+        // If this news item is actually an event link, navigate to EventDetail
+        if (item.raw && item.raw.eventId) {
+          navigation.navigate('EventDetail', { eventId: item.raw.eventId });
+        } else {
+          navigation.navigate('NewsDetail', { news: item });
+        }
+      }}
+    >
       {item.image ? (
         <Image source={{ uri: item.image }} style={styles.listThumb} />
       ) : (
@@ -117,7 +183,13 @@ export default function UserNewsScreen({ navigation }) {
               <Text style={styles.listTime}>{item.date}</Text>
             </View>
           </View>
-          <MaterialCommunityIcons name="bookmark-outline" size={22} color="#64748B" />
+          <TouchableOpacity onPress={() => toggleBookmark(item)}>
+            <MaterialCommunityIcons 
+              name={bookmarkedNews.includes(item.id) ? "bookmark" : "bookmark-outline"} 
+              size={22} 
+              color={bookmarkedNews.includes(item.id) ? "#7C3AED" : "#64748B"} 
+            />
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.listTitle} numberOfLines={2}>{item.title}</Text>
