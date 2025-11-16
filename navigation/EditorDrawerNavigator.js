@@ -22,6 +22,7 @@ import ManageNewsScreen from "../screen/EditorScreen/ManageArticlesScreen";
 import SettingsScreen from "../screen/EditorScreen/EditorSettingsScreen";
 import CreateNewsScreen from "../screen/EditorScreen/CreateNewsScreen";
 import EditorProfileScreen from "../screen/EditorScreen/EditorProfileScreen";
+import EditEditorProfileScreen from "../screen/EditorScreen/EditEditorProfileScreen";
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
@@ -262,6 +263,14 @@ export default function EditorDrawerNavigator() {
           drawerIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
+        }}
+      />
+      <Drawer.Screen
+        name="EditEditorProfile"
+        component={EditEditorProfileScreen}
+        options={{
+          drawerItemStyle: { display: 'none' },
+          headerShown: false,
         }}
       />
     </Drawer.Navigator>

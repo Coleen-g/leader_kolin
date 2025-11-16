@@ -20,6 +20,7 @@ export default function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = () => {
     if (username.trim() === "" || password.trim() === "") {
@@ -102,10 +103,17 @@ export default function LoginScreen() {
               style={styles.input}
               placeholder="Password"
               placeholderTextColor="#CBCBCB"
-              secureTextEntry
+              secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
             />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <MaterialCommunityIcons 
+                name={showPassword ? "eye-outline" : "eye-off-outline"} 
+                size={20} 
+                color="#7C3AED" 
+              />
+            </TouchableOpacity>
           </View>
 
           {/* Login Button */}

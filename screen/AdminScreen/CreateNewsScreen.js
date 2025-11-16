@@ -99,103 +99,100 @@ export default function CreateNewsScreen({ navigation }) {
   // QR image generation handled by on-screen SVG component; no canvas needed
 
   const pickImage = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [16, 9],
-        quality: 0.8,
-      });
-      if (!result.canceled) setNewsData({ ...newsData, image: result.assets[0] });
-    } catch (e) {
-      Alert.alert('Error', 'Failed to pick image');
-    }
-  };
+  try {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (!result.canceled) setNewsData({ ...newsData, image: result.assets[0] }); // keep object with uri, width, height
+  } catch (e) {
+    Alert.alert('Error', 'Failed to pick image');
+  }
+};
 
-  const handleSubmit = async () => {
-    const { title, content, image } = newsData;
-    if (!title.trim() || !content.trim()) {
-      Alert.alert('Missing Fields', 'Please fill in title and content.');
-      return;
-    }
-    if (!currentUser) {
-      Alert.alert('Error', 'User not authenticated.');
-      return;
+const handleSubmit = async () => {
+  const { title, content, image } = newsData;
+  if (!title.trim() || !content.trim()) {
+    Alert.alert('Missing Fields', 'Please fill in title and content.');
+    return;
+  }
+  if (!currentUser) {
+    Alert.alert('Error', 'User not authenticated.');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    let imageUrl = null;
+    if (image) {
+      // Pass the full image object directly to the updated Cloudinary function
+      imageUrl = await uploadImageToCloudinary(image);
+      console.log('Uploaded image URL:', imageUrl);
     }
 
-    setLoading(true);
-    try {
-      let imageUrl = null;
-      if (image) {
-        imageUrl = await uploadImageToCloudinary(image.uri);
-      }
+    const isEvent = isEventCategory(selectedCategory);
 
-      const isEvent = isEventCategory(selectedCategory);
-      
-      if (isEvent) {
-        // Create event in events collection
-        const eventDoc = {
-          title: newsData.title,
-          category: selectedCategory || 'Event',
-          date: eventDate || null,
-          time: eventTime || null,
-          venue: venue || null,
-          description: newsData.content,
-          image: imageUrl || null,
-          attendanceType: attendanceType || 'QR',
-          attendees: [],
-          organizer: currentUser.displayName,
-          organizerUID: currentUser.uid,
-          status: 'Approved',
-          createdAt: Timestamp.now(),
-        };
-        console.log('Creating event with data:', eventDoc);
-        const eventRef = await addDoc(collection(db, 'events'), eventDoc);
-        console.log('Event created successfully with ID:', eventRef.id);
-        
-        // Create minimal news document for listing purposes only
-        const newsDoc = {
-          title: newsData.title,
-          author: currentUser.displayName,
-          authorUID: currentUser.uid,
-          status: 'Approved',
-          category: selectedCategory,
-          eventId: eventRef.id,
-          date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-          createdAt: Timestamp.now(),
-        };
-        const newsRef = await addDoc(collection(db, 'news'), newsDoc);
-        console.log('News link doc created with ID:', newsRef.id, 'for event:', eventRef.id);
-        
-        setEventId(eventRef.id);
-        setShowQRModal(true);
-      } else {
-        // Create regular news article
-        const newsDoc = {
-          title: newsData.title,
-          content: newsData.content,
-          author: currentUser.displayName,
-          authorUID: currentUser.uid,
-          status: 'Approved',
-          category: selectedCategory || 'General',
-          date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-          createdAt: Timestamp.now(),
-        };
-        if (imageUrl) newsDoc.imageUrl = imageUrl;
+    if (isEvent) {
+      const eventDoc = {
+        title: newsData.title,
+        category: selectedCategory || 'Event',
+        date: eventDate || null,
+        time: eventTime || null,
+        venue: venue || null,
+        description: newsData.content,
+        image: imageUrl || null, // Cloudinary URL
+        attendanceType: attendanceType || 'QR',
+        attendees: [],
+        organizer: currentUser.displayName,
+        organizerUID: currentUser.uid,
+        status: 'Approved',
+        createdAt: Timestamp.now(),
+      };
+      const eventRef = await addDoc(collection(db, 'events'), eventDoc);
 
-        await addDoc(collection(db, 'news'), newsDoc);
-        
-        Alert.alert('Success', 'Article created.');
-        setNewsData({ title: '', content: '', image: null });
-        navigation.goBack();
-      }
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', err.message || 'Failed to create news/event.');
-    } finally {
-      setLoading(false);
+      const newsDoc = {
+        title: newsData.title,
+        author: currentUser.displayName,
+        authorUID: currentUser.uid,
+        status: 'Approved',
+        category: selectedCategory,
+        eventId: eventRef.id,
+        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+        createdAt: Timestamp.now(),
+      };
+      await addDoc(collection(db, 'news'), newsDoc);
+
+      setEventId(eventRef.id);
+      setShowQRModal(true);
+    } else {
+      const newsDoc = {
+        title: newsData.title,
+        content: newsData.content,
+        author: currentUser.displayName,
+        authorUID: currentUser.uid,
+        status: 'Approved',
+        category: selectedCategory || 'General',
+        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+        createdAt: Timestamp.now(),
+      };
+      if (imageUrl) newsDoc.imageUrl = imageUrl; // Cloudinary URL
+
+      await addDoc(collection(db, 'news'), newsDoc);
+
+      Alert.alert('Success', 'Article created.');
+      setNewsData({ title: '', content: '', image: null });
+      navigation.goBack();
     }
-  };
+  } catch (err) {
+    console.error(err);
+    Alert.alert('Error', err.message || 'Failed to create news/event.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>

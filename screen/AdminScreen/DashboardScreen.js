@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { db } from '../../firebase/firebaseConfig';
 import { collection, getDocs } from 'firebase/firestore';
@@ -7,11 +7,11 @@ import { collection, getDocs } from 'firebase/firestore';
 export default function DashboardScreen() {
   const [counts, setCounts] = useState({ news: 0, users: 0, categories: 0 });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     const fetchCounts = async () => {
-      setLoading(true);
       try {
         const newsSnap = await getDocs(collection(db, 'news'));
         const usersSnap = await getDocs(collection(db, 'users'));
@@ -28,7 +28,10 @@ export default function DashboardScreen() {
       } catch (error) {
         console.error('Error fetching dashboard counts:', error);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     };
 
@@ -36,8 +39,38 @@ export default function DashboardScreen() {
     return () => { mounted = false; };
   }, []);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const newsSnap = await getDocs(collection(db, 'news'));
+      const usersSnap = await getDocs(collection(db, 'users'));
+      let categoriesSnap;
+      try {
+        categoriesSnap = await getDocs(collection(db, 'categories'));
+      } catch (e) {
+        categoriesSnap = { size: 0 };
+      }
+      setCounts({ news: newsSnap.size, users: usersSnap.size, categories: categoriesSnap.size || 0 });
+    } catch (error) {
+      console.error('Error refreshing dashboard counts:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={{ paddingBottom: 40 }}
+      refreshControl={
+        <RefreshControl 
+          refreshing={refreshing} 
+          onRefresh={handleRefresh} 
+          colors={['#667EEA']}
+          tintColor="#667EEA"
+        />
+      }
+    >
       <View style={styles.headerRow}>
         <View style={styles.badge}>
           <MaterialCommunityIcons name="view-dashboard-outline" size={18} color="#fff" />

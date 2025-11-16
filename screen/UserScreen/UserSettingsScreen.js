@@ -8,7 +8,6 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Alert,
-  TextInput,
   ActivityIndicator,
   StatusBar,
   Platform,
@@ -17,11 +16,9 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { auth, db } from "../../firebase/firebaseConfig";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { updatePassword, updateEmail } from "firebase/auth";
 
 export default function UserSettingsScreen({ navigation }) {
   const [darkMode, setDarkMode] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -45,7 +42,6 @@ export default function UserSettingsScreen({ navigation }) {
             preferences: userDoc.data().preferences || {},
           });
           setSelectedCategories(userDoc.data().preferences?.categories || []);
-          setNotificationsEnabled(userDoc.data().preferences?.notificationsEnabled !== false);
         } else {
           setUser({
             name: currentUser.displayName || '',
@@ -74,7 +70,6 @@ export default function UserSettingsScreen({ navigation }) {
       const userDocRef = doc(db, 'users', user.uid);
       await updateDoc(userDocRef, {
         preferences: {
-          notificationsEnabled,
           categories: selectedCategories,
           darkMode,
         }
@@ -84,36 +79,6 @@ export default function UserSettingsScreen({ navigation }) {
       Alert.alert('Error', 'Failed to save settings');
       console.error('Error saving preferences:', error);
     }
-  };
-
-  const handleChangePassword = () => {
-    Alert.prompt(
-      'Change Password',
-      'Enter your new password:',
-      [
-        {
-          text: 'Cancel',
-          onPress: () => {},
-          style: 'cancel',
-        },
-        {
-          text: 'Change',
-          onPress: async (newPassword) => {
-            try {
-              if (newPassword && newPassword.length >= 6) {
-                await updatePassword(auth.currentUser, newPassword);
-                Alert.alert('Success', 'Password changed successfully');
-              } else {
-                Alert.alert('Error', 'Password must be at least 6 characters');
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to change password: ' + error.message);
-            }
-          },
-        },
-      ],
-      'secure-text'
-    );
   };
 
   if (loading) {
@@ -151,53 +116,6 @@ export default function UserSettingsScreen({ navigation }) {
             </View>
           </View>
         </LinearGradient>
-
-        {/* Profile Settings Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="person" size={20} color="#7C3AED" />
-            <Text style={styles.sectionTitle}>Account</Text>
-          </View>
-          <View style={styles.card}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <MaterialCommunityIcons name="lock-outline" size={20} color="#7C3AED" />
-                <View style={styles.settingTextContainer}>
-                  <Text style={styles.label}>Change Password</Text>
-                  <Text style={styles.description}>Update your password</Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={handleChangePassword}>
-                <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* Notifications Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="notifications" size={20} color="#7C3AED" />
-            <Text style={styles.sectionTitle}>Notifications</Text>
-          </View>
-          <View style={styles.card}>
-            <View style={styles.switchRow}>
-              <View style={styles.settingLeft}>
-                <MaterialCommunityIcons name="bell-outline" size={20} color="#7C3AED" />
-                <View style={styles.settingTextContainer}>
-                  <Text style={styles.label}>Enable Notifications</Text>
-                  <Text style={styles.description}>Receive news updates</Text>
-                </View>
-              </View>
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
-                trackColor={{ false: '#E2E8F0', true: '#7C3AED' }}
-                thumbColor={notificationsEnabled ? '#fff' : '#94A3B8'}
-              />
-            </View>
-          </View>
-        </View>
 
         {/* News Categories Section */}
         <View style={styles.section}>
@@ -258,22 +176,36 @@ export default function UserSettingsScreen({ navigation }) {
           </View>
         </View>
 
-        {/* About Section */}
+        {/* Quick Links Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="information-circle" size={20} color="#7C3AED" />
-            <Text style={styles.sectionTitle}>About</Text>
+            <Ionicons name="link" size={20} color="#7C3AED" />
+            <Text style={styles.sectionTitle}>More</Text>
           </View>
           <View style={styles.card}>
             <TouchableOpacity
               style={styles.settingRow}
-              onPress={() => navigation.navigate('About')}
+              onPress={() => navigation.navigate('PrivacySecurity')}
             >
               <View style={styles.settingLeft}>
-                <MaterialCommunityIcons name="information-outline" size={20} color="#7C3AED" />
+                <MaterialCommunityIcons name="shield-check-outline" size={20} color="#7C3AED" />
                 <View style={styles.settingTextContainer}>
-                  <Text style={styles.label}>About Campus News</Text>
-                  <Text style={styles.description}>Learn more about our app</Text>
+                  <Text style={styles.label}>Privacy & Security</Text>
+                  <Text style={styles.description}>Manage your privacy settings</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+            </TouchableOpacity>
+            <View style={styles.divider} />
+            <TouchableOpacity
+              style={styles.settingRow}
+              onPress={() => navigation.navigate('HelpSupport')}
+            >
+              <View style={styles.settingLeft}>
+                <MaterialCommunityIcons name="help-circle-outline" size={20} color="#7C3AED" />
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.label}>Help & Support</Text>
+                  <Text style={styles.description}>Get help and support</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
@@ -288,20 +220,6 @@ export default function UserSettingsScreen({ navigation }) {
                 </View>
               </View>
             </View>
-            <View style={styles.divider} />
-            <TouchableOpacity
-              style={styles.settingRow}
-              onPress={() => Alert.alert('Contact Support', 'Email: support@campusnews.com\nPhone: +1 (555) 123-4567')}
-            >
-              <View style={styles.settingLeft}>
-                <MaterialCommunityIcons name="email-outline" size={20} color="#7C3AED" />
-                <View style={styles.settingTextContainer}>
-                  <Text style={styles.label}>Contact Support</Text>
-                  <Text style={styles.description}>Get help and support</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -392,11 +310,10 @@ const styles = StyleSheet.create({
   
   /* Labels and Text */
   label: { fontSize: 15, fontWeight: '700', color: '#0F172A', marginBottom: 2 },
-  value: { fontSize: 13, color: '#64748B' },
   description: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
   
   /* Divider */
-  divider: { height: 1, backgroundColor: '#E2E8F0', marginHorizontal: 16 },
+  divider: { height: 1, backgroundColor: '#E2E8F0' },
   
   /* Button */
   saveButton: {

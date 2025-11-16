@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { db, auth } from "../../firebase/firebaseConfig";
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 export default function UserNewsScreen({ navigation }) {
@@ -25,6 +25,8 @@ export default function UserNewsScreen({ navigation }) {
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState('All news');
   const [bookmarkedNews, setBookmarkedNews] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   // listen for auth changes to get current user uid and avatar
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -98,11 +100,11 @@ export default function UserNewsScreen({ navigation }) {
     }
   };
 
-  // fetch only news created by the current user
-  // fetch all approved news (global feed) and sort client-side
+  // Fetch only Approved news (client-side sort to avoid composite index requirement)
   useEffect(() => {
     const newsRef = collection(db, "news");
-    const q = query(newsRef, where("status", "==", "Approved"));
+    // Fetch only Approved news documents
+    const q = query(newsRef, where('status', '==', 'Approved'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const news = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -115,18 +117,24 @@ export default function UserNewsScreen({ navigation }) {
         authorAvatar: doc.data().authorAvatar || doc.data().authorPhotoURL || null,
         raw: doc.data(),
       }));
-      // sort client-side by createdAt desc
+
+      // Sort by createdAt descending in JavaScript to avoid composite index
       news.sort((a, b) => {
         const ta = a.raw && a.raw.createdAt && a.raw.createdAt.seconds ? a.raw.createdAt.seconds : 0;
         const tb = b.raw && b.raw.createdAt && b.raw.createdAt.seconds ? b.raw.createdAt.seconds : 0;
         return tb - ta;
       });
+
       setAllNews(news);
       setFilteredNews(news);
-    }, (error) => console.error("Error fetching news:", error));
+      setRefreshing(false);
+    }, (error) => {
+      console.error("Error fetching news:", error);
+      setRefreshing(false);
+    });
 
     return unsubscribe;
-  }, []);
+  }, [refreshKey]);
 
   // fetch categories (optional) so chips don't error when rendered
   useEffect(() => {
@@ -206,6 +214,8 @@ export default function UserNewsScreen({ navigation }) {
         data={filteredNews}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={() => { setRefreshing(true); setRefreshKey(k => k + 1); }}
         ListHeaderComponent={() => (
           <>
             <View style={styles.headerWrap}>

@@ -74,17 +74,27 @@ export default function EventDetailScreen({ route, navigation }) {
       // Check if QR code matches event ID
       if (payload === event.id || payload.includes(event.id)) {
         const eventRef = doc(db, 'events', event.id);
-        await updateDoc(eventRef, {
-          attendees: arrayUnion({
-            uid: currentUser.uid,
-            name: currentUser.displayName,
-            scannedAt: Timestamp.now(),
-          }),
-        });
-        
-        Alert.alert('Success', 'Your attendance has been registered!');
-        setCameraVisible(false);
-        setScanned(false);
+        // Re-fetch latest attendees to avoid duplicates
+        const latest = await getDoc(eventRef);
+        const latestAttendees = latest.exists() ? (latest.data().attendees || []) : [];
+        const already = latestAttendees.some((a) => a && a.uid === currentUser.uid);
+        if (already) {
+          Alert.alert('Already registered', 'You have already registered attendance for this event');
+          // close scanner and reset state
+          setCameraVisible(false);
+          setScanned(false);
+        } else {
+          await updateDoc(eventRef, {
+            attendees: arrayUnion({
+              uid: currentUser.uid,
+              name: currentUser.displayName,
+              scannedAt: Timestamp.now(),
+            }),
+          });
+          Alert.alert('Success', 'Your attendance has been registered!');
+          setCameraVisible(false);
+          setScanned(false);
+        }
       } else {
         Alert.alert('Invalid QR', 'This QR code does not match this event');
         setScanned(false);

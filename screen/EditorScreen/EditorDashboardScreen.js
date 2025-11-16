@@ -10,6 +10,7 @@ import {
   TextInput,
   ScrollView,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -26,6 +27,7 @@ export default function EditorDashboardScreen() {
   const [recent, setRecent] = useState([]);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const quickActions = [
     { id: "1", label: "Create News", icon: "create-outline", color: "#2563EB", route: "CreateTab" },
@@ -156,6 +158,65 @@ export default function EditorDashboardScreen() {
     if (route) navigation.navigate(route);
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // Re-fetch stats
+      const newsRef = collection(db, "news");
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const pendingSnap = await getDocs(query(newsRef, where("authorUID", "==", currentUser.uid), where("status", "==", "Pending")));
+        const approvedSnap = await getDocs(query(newsRef, where("authorUID", "==", currentUser.uid), where("status", "==", "Approved")));
+        const declinedSnap = await getDocs(query(newsRef, where("authorUID", "==", currentUser.uid), where("status", "==", "Declined")));
+
+        setStats([
+          { id: "1", label: "Pending", count: pendingSnap.size, icon: "time-outline", color: "#F59E0B" },
+          { id: "2", label: "Published", count: approvedSnap.size, icon: "newspaper-outline", color: "#10B981" },
+          { id: "3", label: "Rejected", count: declinedSnap.size, icon: "close-circle-outline", color: "#EF4444" },
+        ]);
+
+        // Re-fetch recent submissions
+        const recentQuery = query(
+          newsRef,
+          where("authorUID", "==", currentUser.uid),
+          limit(10)
+        );
+        const recentSnap = await getDocs(recentQuery);
+
+        const recentData = recentSnap.docs.map((doc) => {
+          const data = doc.data();
+          const createdAt = data.createdAt?.toDate?.() || new Date();
+          const now = new Date();
+          const diffMs = now - createdAt;
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
+
+          let timeAgo = "just now";
+          if (diffMins > 0 && diffMins < 60) timeAgo = `${diffMins}m`;
+          else if (diffHours > 0 && diffHours < 24) timeAgo = `${diffHours}h`;
+          else if (diffDays > 0) timeAgo = `${diffDays}d`;
+
+          return {
+            id: doc.id,
+            title: data.title || "Untitled",
+            author: data.author || "Unknown",
+            time: timeAgo,
+            status: data.status || "Pending",
+            createdAt: createdAt,
+          };
+        });
+
+        recentData.sort((a, b) => b.createdAt - a.createdAt);
+        setRecent(recentData.slice(0, 5));
+      }
+    } catch (error) {
+      console.error("Error refreshing dashboard:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
@@ -193,7 +254,18 @@ export default function EditorDashboardScreen() {
         )}
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={handleRefresh} 
+            colors={['#667EEA']}
+            tintColor="#667EEA"
+          />
+        }
+      >
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.actionsGrid}>
           {quickActions.map((a) => (

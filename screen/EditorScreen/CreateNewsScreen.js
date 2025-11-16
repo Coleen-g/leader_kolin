@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image, Modal } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import QRCodeSVG from 'react-native-qrcode-svg';
 import { auth, db } from '../../firebase/firebaseConfig';
 import { collection, addDoc, Timestamp, doc, getDoc, getDocs } from 'firebase/firestore';
 import { uploadImageToCloudinary } from '../../utils/cloudinary';
@@ -14,9 +15,23 @@ export default function CreateNewsScreen({ navigation }) {
   });
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('General');
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
+  const [venue, setVenue] = useState('');
+  const [attendanceType, setAttendanceType] = useState('QR');
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [eventId, setEventId] = useState(null);
+  
+  // Treat 'Event' and 'Events' (case-insensitive) as event-type
+  const EVENT_CATEGORIES = ['event', 'events'];
+
+  const isEventCategory = (cat) => {
+    if (!cat) return false;
+    return EVENT_CATEGORIES.includes(cat.toString().toLowerCase().trim());
+  };
 
   // Get current user on mount
   useEffect(() => {
@@ -75,6 +90,10 @@ export default function CreateNewsScreen({ navigation }) {
     setNewsData({ ...newsData, [field]: value });
   };
 
+  const handleCategorySelect = (cat) => {
+    setSelectedCategory(cat);
+  };
+
   // Pick image from device
   const pickImage = async () => {
     try {
@@ -129,33 +148,81 @@ export default function CreateNewsScreen({ navigation }) {
         }
       }
 
-      // Save to Firebase
-      const newsDoc = {
-        title: title,
-        content: content,
-        author: currentUser.displayName,
-        authorUID: currentUser.uid,
-        // Admin posts are auto-approved; editors/posts from others remain Pending
-        status: (userRole && userRole.toLowerCase() === 'admin') ? 'Approved' : 'Pending',
-        category: selectedCategory || 'General',
-        date: new Date().toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        }),
-        createdAt: Timestamp.now(),
-      };
+      const isEvent = isEventCategory(selectedCategory);
 
-      // Only include imageUrl if an image was uploaded
-      if (imageUrl) {
-        newsDoc.imageUrl = imageUrl;
+      if (isEvent) {
+        // Create event in events collection
+        const eventDoc = {
+          title: newsData.title,
+          category: selectedCategory || 'Event',
+          date: eventDate || null,
+          time: eventTime || null,
+          venue: venue || null,
+          description: newsData.content,
+          image: imageUrl || null,
+          attendanceType: attendanceType || 'QR',
+          attendees: [],
+          organizer: currentUser.displayName,
+          organizerUID: currentUser.uid,
+          status: 'Pending', // Editor events are Pending until admin approves
+          createdAt: Timestamp.now(),
+        };
+        const eventRef = await addDoc(collection(db, 'events'), eventDoc);
+
+        // Create news entry for event
+        const newsDoc = {
+          title: newsData.title,
+          author: currentUser.displayName,
+          authorUID: currentUser.uid,
+          status: 'Pending', // Editor events are Pending until admin approves
+          category: selectedCategory,
+          eventId: eventRef.id,
+          date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+          createdAt: Timestamp.now(),
+        };
+        await addDoc(collection(db, 'news'), newsDoc);
+
+        // Only show QR modal if user is admin
+        if (userRole && userRole.toLowerCase() === 'admin') {
+          setEventId(eventRef.id);
+          setShowQRModal(true);
+        } else {
+          Alert.alert('Success', 'Event created and sent for approval!');
+          setNewsData({ title: '', content: '', image: null });
+          setEventDate('');
+          setEventTime('');
+          setVenue('');
+          navigation.goBack();
+        }
+      } else {
+        // Regular article
+        const newsDoc = {
+          title: title,
+          content: content,
+          author: currentUser.displayName,
+          authorUID: currentUser.uid,
+          // Admin posts are auto-approved; editors/posts from others remain Pending
+          status: (userRole && userRole.toLowerCase() === 'admin') ? 'Approved' : 'Pending',
+          category: selectedCategory || 'General',
+          date: new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          }),
+          createdAt: Timestamp.now(),
+        };
+
+        // Only include imageUrl if an image was uploaded
+        if (imageUrl) {
+          newsDoc.imageUrl = imageUrl;
+        }
+
+        await addDoc(collection(db, 'news'), newsDoc);
+
+        Alert.alert('Success', 'Article created and sent for approval!');
+        setNewsData({ title: '', content: '', image: null });
+        navigation.goBack();
       }
-
-      await addDoc(collection(db, 'news'), newsDoc);
-
-      Alert.alert('Success', 'Article created and sent for approval!');
-      setNewsData({ title: '', content: '', image: null });
-      navigation.goBack();
     } catch (error) {
       console.error('Error creating article:', error);
       Alert.alert('Error', error.message || 'Failed to create article.');
@@ -220,7 +287,7 @@ export default function CreateNewsScreen({ navigation }) {
                   styles.categoryChip,
                   selectedCategory === cat && styles.categoryChipActive,
                 ]}
-                onPress={() => setSelectedCategory(cat)}
+                onPress={() => handleCategorySelect(cat)}
                 disabled={loading}
               >
                 <Text
@@ -279,6 +346,35 @@ export default function CreateNewsScreen({ navigation }) {
           />
         </View>
 
+        {/* Event Details (shown only when Event category is selected) */}
+        {isEventCategory(selectedCategory) && (
+          <View>
+            <Text style={styles.sectionTitle}>Event Details</Text>
+            <View style={styles.inputGroup}>
+              <MaterialCommunityIcons name="calendar" size={20} color="#667EEA" style={styles.inputIcon} />
+              <TextInput style={styles.input} placeholder="Date (YYYY-MM-DD)" value={eventDate} onChangeText={setEventDate} placeholderTextColor="#9CA3AF" />
+            </View>
+            <View style={styles.inputGroup}>
+              <MaterialCommunityIcons name="clock-outline" size={20} color="#667EEA" style={styles.inputIcon} />
+              <TextInput style={styles.input} placeholder="Time (HH:MM)" value={eventTime} onChangeText={setEventTime} placeholderTextColor="#9CA3AF" />
+            </View>
+            <View style={styles.inputGroup}>
+              <MaterialCommunityIcons name="map-marker-outline" size={20} color="#667EEA" style={styles.inputIcon} />
+              <TextInput style={styles.input} placeholder="Venue" value={venue} onChangeText={setVenue} placeholderTextColor="#9CA3AF" />
+            </View>
+            <View style={styles.attendanceRow}>
+              <Text style={{ color: '#6B7280', fontWeight: '600' }}>Attendance</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {['QR', 'Manual', 'Location'].map((t) => (
+                  <TouchableOpacity key={t} onPress={() => setAttendanceType(t)} style={[styles.attendanceBtn, attendanceType === t && styles.attendanceBtnActive]}>
+                    <Text style={[styles.attendanceText, attendanceType === t && { color: '#fff' }]}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Submit Button */}
         <TouchableOpacity 
           style={[styles.submitButton, loading && { opacity: 0.7 }]} 
@@ -304,6 +400,64 @@ export default function CreateNewsScreen({ navigation }) {
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       </View>
+
+      {/* QR Code Modal - Only show for admins */}
+      {userRole && userRole.toLowerCase() === 'admin' && (
+        <Modal
+          visible={showQRModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => {
+            setShowQRModal(false);
+            setEventId(null);
+          }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Event QR Code Generated</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowQRModal(false);
+                    setEventId(null);
+                  }}
+                >
+                  <MaterialCommunityIcons name="close" size={24} color="#0F172A" />
+                </TouchableOpacity>
+              </View>
+
+              {eventId && (
+                <View style={styles.qrContainer}>
+                  <Text style={styles.qrSubtitle}>Scan this code for event check-in</Text>
+                  <View style={{ marginVertical: 12 }}>
+                    <QRCodeSVG value={eventId} size={260} backgroundColor="#ffffff" color="#0F172A" />
+                  </View>
+                  <Text style={styles.eventIdText}>Event ID: {eventId}</Text>
+                  <Text style={styles.instructionText}>
+                    Users can scan this QR code to attend the event. The code links to this event's unique ID.
+                  </Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => {
+                  setShowQRModal(false);
+                  setEventId(null);
+                  Alert.alert('Success', 'Event created and sent for approval!');
+                  setNewsData({ title: '', content: '', image: null });
+                  setEventDate('');
+                  setEventTime('');
+                  setVenue('');
+                  navigation.goBack();
+                }}
+              >
+                <Text style={styles.modalButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
     </ScrollView>
   );
 }

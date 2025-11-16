@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Modal, ScrollView, SafeAreaView } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import { db } from '../../firebase/firebaseConfig';
+import { db, auth } from '../../firebase/firebaseConfig';
 import { collection, query, where, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 
 export default function ManageArticlesScreen() {
@@ -15,11 +15,21 @@ export default function ManageArticlesScreen() {
   const [selectedNews, setSelectedNews] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('Pending');
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Fetch only PENDING articles from Firebase
+  // Fetch articles with selected status (Pending/Approved) authored by the current editor
   useEffect(() => {
+    const u = auth.currentUser;
+    if (!u) {
+      setNewsList([]);
+      setLoading(false);
+      return;
+    }
+
     const newsRef = collection(db, 'news');
-    const q = query(newsRef, where('status', '==', 'Pending'));
+    const q = query(newsRef, where('status', '==', filterStatus), where('authorUID', '==', u.uid));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -36,15 +46,17 @@ export default function ManageArticlesScreen() {
         });
         setNewsList(newsData);
         setLoading(false);
+        setRefreshing(false);
       },
       (error) => {
         console.error('Error fetching articles:', error);
         setLoading(false);
+        setRefreshing(false);
       }
     );
 
     return unsubscribe;
-  }, [isFocused]);
+  }, [isFocused, filterStatus, refreshKey]);
 
   // Filter by search query
   const filteredNews = newsList.filter((item) =>
@@ -100,7 +112,7 @@ export default function ManageArticlesScreen() {
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Manage Articles</Text>
-          <Text style={styles.headerSubtitle}>Review and approve pending submissions</Text>
+          <Text style={styles.headerSubtitle}>Your {filterStatus} submissions</Text>
         </View>
         <TouchableOpacity 
           style={styles.createButton}
@@ -108,6 +120,19 @@ export default function ManageArticlesScreen() {
         >
           <MaterialCommunityIcons name="plus-circle" size={28} color="#667EEA" />
         </TouchableOpacity>
+      </View>
+
+      {/* Filter Toggle */}
+      <View style={styles.filterRow}>
+        {['Pending', 'Approved'].map((s) => (
+          <TouchableOpacity
+            key={s}
+            style={[styles.filterButton, filterStatus === s && styles.filterButtonActive]}
+            onPress={() => { setFilterStatus(s); setLoading(true); }}
+          >
+            <Text style={[styles.filterText, filterStatus === s && styles.filterTextActive]}>{s}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Search Bar */}
@@ -129,7 +154,7 @@ export default function ManageArticlesScreen() {
       ) : filteredNews.length === 0 ? (
         <View style={styles.centerContainer}>
           <MaterialCommunityIcons name="newspaper-outline" size={48} color="#E2E8F0" />
-          <Text style={styles.emptyText}>No pending articles</Text>
+          <Text style={styles.emptyText}>No {filterStatus} articles</Text>
         </View>
       ) : (
         <FlatList
@@ -138,6 +163,8 @@ export default function ManageArticlesScreen() {
           keyExtractor={(item) => item.firebaseId}
           contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); setRefreshKey(k => k + 1); }}
         />
       )}
 
@@ -182,38 +209,48 @@ export default function ManageArticlesScreen() {
                 </Text>
               </View>
 
-              {/* Action buttons */}
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.declineButton]}
-                  onPress={() => handleAction(selectedNews.firebaseId, 'Declined')}
-                  disabled={updating}
-                >
-                  {updating ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <MaterialCommunityIcons name="close-circle-outline" size={20} color="#fff" />
-                      <Text style={styles.actionButtonText}>Decline</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+              {selectedNews.status === 'Pending' ? (
+                // Show action buttons only for Pending items
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.declineButton]}
+                    onPress={() => handleAction(selectedNews.firebaseId, 'Declined')}
+                    disabled={updating}
+                  >
+                    {updating ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <>
+                        <MaterialCommunityIcons name="close-circle-outline" size={20} color="#fff" />
+                        <Text style={styles.actionButtonText}>Decline</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.approveButton]}
-                  onPress={() => handleAction(selectedNews.firebaseId, 'Approved')}
-                  disabled={updating}
-                >
-                  {updating ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <MaterialCommunityIcons name="check-circle-outline" size={20} color="#fff" />
-                      <Text style={styles.actionButtonText}>Approve</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.approveButton]}
+                    onPress={() => handleAction(selectedNews.firebaseId, 'Approved')}
+                    disabled={updating}
+                  >
+                    {updating ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <>
+                        <MaterialCommunityIcons name="check-circle-outline" size={20} color="#fff" />
+                        <Text style={styles.actionButtonText}>Approve</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                // Read-only status badge for non-pending items
+                <View style={styles.statusRow}>
+                  <Text style={styles.statusLabel}>Status:</Text>
+                  <View style={[styles.statusBadge, selectedNews.status === 'Approved' ? styles.statusApproved : styles.statusDeclined]}>
+                    <Text style={styles.statusText}>{selectedNews.status || 'Unknown'}</Text>
+                  </View>
+                </View>
+              )}
             </ScrollView>
           )}
         </SafeAreaView>
@@ -282,4 +319,15 @@ const styles = StyleSheet.create({
   declineButton: { backgroundColor: '#EF4444' },
   approveButton: { backgroundColor: '#10B981' },
   actionButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 18 },
+  statusLabel: { fontSize: 14, color: '#64748B', marginRight: 8, fontWeight: '700' },
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  statusApproved: { backgroundColor: '#ECFDF5' },
+  statusDeclined: { backgroundColor: '#FFF1F2' },
+  statusText: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
+  filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+  filterButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E6EEF8' },
+  filterButtonActive: { backgroundColor: '#7C3AED', borderColor: '#7C3AED' },
+  filterText: { color: '#475569', fontWeight: '700' },
+  filterTextActive: { color: '#fff' },
 });

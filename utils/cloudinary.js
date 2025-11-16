@@ -1,43 +1,51 @@
 // utils/cloudinary.js
 
-/**
- * Upload an image file to Cloudinary
- * @param {string|object} imageFile - the image URI string or object with { uri }
- * @returns {Promise<string>} - returns the secure URL of the uploaded image
- */
+function getMimeTypeFromUri(uri) {
+  if (!uri || typeof uri !== 'string') return 'image/jpeg';
+  const clean = uri.split('?')[0].split('#')[0];
+  const parts = clean.split('.');
+  const ext = parts.length ? parts[parts.length - 1].toLowerCase() : '';
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    case 'heic':
+    case 'heif':
+      return 'image/heic';
+    case 'svg':
+      return 'image/svg+xml';
+    default:
+      return 'image/jpeg';
+  }
+}
+
 export async function uploadImageToCloudinary(imageFile) {
   try {
-    // Cloudinary config
     const cloudName = "dakps43bh";
-    const uploadPreset = "ml_default"; // unsigned upload preset
+    const uploadPreset = "news_images";
     const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
 
-    console.log('🌩️ Cloudinary config:', { cloudName, uploadPreset, url });
-
-    // Accept either a URI string or an object with .uri
+    // get uri string
     const imageUri = typeof imageFile === 'string' ? imageFile : imageFile?.uri;
-    if (!imageUri) {
-      throw new Error('Invalid image URI provided to Cloudinary uploader');
-    }
+    if (!imageUri) throw new Error('Invalid image URI');
 
-    // Convert local URI to blob (required for fetch uploads in React Native / Expo)
-    console.log('📸 Converting URI to blob:', imageUri);
-    const response = await fetch(imageUri);
-    if (!response.ok) {
-      const txt = await response.text().catch(() => 'no body');
-      throw new Error(`Failed to fetch image URI. HTTP ${response.status}: ${txt}`);
-    }
-    const blob = await response.blob();
-    console.log('📦 Blob size/type:', blob.size, blob.type);
-
-    // Prepare form data
     const formData = new FormData();
-    formData.append('file', blob);
+
+    // Append file directly with type and name
+    formData.append('file', {
+      uri: imageUri,
+      type: getMimeTypeFromUri(imageUri),
+      name: `upload_${Date.now()}.${(imageUri.split('.').pop() || 'jpg')}`,
+    });
     formData.append('upload_preset', uploadPreset);
 
-    console.log('📤 Sending request to Cloudinary...');
-
-    const uploadRes = await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       body: formData,
       headers: {
@@ -45,24 +53,13 @@ export async function uploadImageToCloudinary(imageFile) {
       },
     });
 
-    const text = await uploadRes.text();
-    console.log('📨 Cloudinary raw response status:', uploadRes.status, 'text length:', text?.length || 0);
+    const data = await response.json();
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      console.error('❌ Failed to parse Cloudinary response as JSON:', text);
-      throw new Error(`Invalid response from Cloudinary: ${text}`);
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'Upload failed');
     }
 
-    console.log('📨 Parsed response data:', data);
-
-    if (uploadRes.ok && data.secure_url) {
-      console.log('✅ Upload successful! URL:', data.secure_url);
-      return data.secure_url;
-    }
-    throw new Error(data.error?.message || `Upload failed (status ${uploadRes.status})`);
+    return data.secure_url;
   } catch (error) {
     console.error('❌ Error uploading image to Cloudinary:', error);
     throw error;

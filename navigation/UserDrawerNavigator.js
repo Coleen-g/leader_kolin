@@ -17,7 +17,8 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { auth, db } from "../firebase/firebaseConfig";
-import { doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 
 // 📱 Import Screens
 import UserHomeScreen from "../screen/UserScreen/UserHomeScreen"; // Home tab
@@ -29,6 +30,7 @@ import UserProfileScreen from "../screen/UserScreen/UserProfileScreen";
 import FavoritesScreen from "../screen/UserScreen/FavoritesScreen"; // Favorites tab
 import NewsDetailScreen from "../screen/UserScreen/NewsDetailScreen"; // News detail
 import EventDetailScreen from "../screen/UserScreen/EventDetailScreen"; // Event detail (user version)
+import EditUserScreen from "../screen/UserScreen/EditUserScreen";
 
 const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
@@ -118,18 +120,36 @@ function UserBottomTabs() {
   const [userAvatar, setUserAvatar] = useState('https://i.pravatar.cc/100');
 
   useEffect(() => {
-    const fetchAvatar = async () => {
-      try {
-        const currentUser = auth.currentUser;
-        if (currentUser && currentUser.photoURL) {
-          setUserAvatar(currentUser.photoURL);
-        }
-      } catch (error) {
-        console.error('Error fetching avatar:', error);
+    let unsubDoc = null;
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
+      if (!u) {
+        setUserAvatar('https://i.pravatar.cc/100');
+        if (unsubDoc) unsubDoc();
+        return;
       }
-    };
 
-    fetchAvatar();
+      // Listen to firestore user doc so avatar updates in real-time when changed
+      try {
+        const userRef = doc(db, 'users', u.uid);
+        unsubDoc = onSnapshot(userRef, (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setUserAvatar(data.photoURL || u.photoURL || 'https://i.pravatar.cc/100');
+          } else {
+            setUserAvatar(u.photoURL || 'https://i.pravatar.cc/100');
+          }
+        }, (err) => {
+          console.error('User doc snapshot error:', err);
+        });
+      } catch (err) {
+        console.error('Error subscribing to user doc:', err);
+      }
+    });
+
+    return () => {
+      try { unsubAuth(); } catch (e) {}
+      try { if (unsubDoc) unsubDoc(); } catch (e) {}
+    };
   }, []);
 
   return (
@@ -220,32 +240,56 @@ function CustomDrawerContent(props) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    let unsubDoc = null;
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
+      if (!u) {
+        setUser(null);
+        setLoading(false);
+        if (unsubDoc) unsubDoc();
+        return;
+      }
+
       setLoading(true);
       try {
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists()) {
+        const userRef = doc(db, 'users', u.uid);
+        unsubDoc = onSnapshot(userRef, (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
             setUser({
-              uid: currentUser.uid,
-              displayName: currentUser.displayName || 'User',
-              username: userDoc.data().username || '@user',
-              email: currentUser.email,
-              photoURL: currentUser.photoURL || 'https://i.pravatar.cc/100',
-              following: userDoc.data().following || 0,
-              followers: userDoc.data().followers || 0,
+              uid: u.uid,
+              displayName: u.displayName || data.displayName || 'User',
+              username: data.username || '@user',
+              email: u.email || data.email,
+              photoURL: data.photoURL || u.photoURL || 'https://i.pravatar.cc/100',
+              following: data.following || 0,
+              followers: data.followers || 0,
+            });
+          } else {
+            setUser({
+              uid: u.uid,
+              displayName: u.displayName || 'User',
+              username: '@user',
+              email: u.email,
+              photoURL: u.photoURL || 'https://i.pravatar.cc/100',
+              following: 0,
+              followers: 0,
             });
           }
-        }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      } finally {
+          setLoading(false);
+        }, (err) => {
+          console.error('User doc snapshot error:', err);
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error('Error subscribing to user doc:', err);
         setLoading(false);
       }
-    };
+    });
 
-    fetchUserData();
+    return () => {
+      try { unsubAuth(); } catch (e) {}
+      try { if (unsubDoc) unsubDoc(); } catch (e) {}
+    };
   }, []);
 
   return (
@@ -323,6 +367,13 @@ export default function UserDrawerNavigator() {
             <Ionicons name="home-outline" size={26} color={color} />
           ),
         }}
+      />
+
+      {/* Hidden route for editing user (navigated to programmatically) */}
+      <Drawer.Screen
+        name="EditUser"
+        component={EditUserScreen}
+        options={{ drawerItemStyle: { height: 0 } }}
       />
 
       <Drawer.Screen

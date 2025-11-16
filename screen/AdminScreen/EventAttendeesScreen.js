@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { db } from '../../firebase/firebaseConfig';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 
 export default function EventAttendeesScreen({ route, navigation }) {
   const { eventId } = route.params;
@@ -22,43 +22,34 @@ export default function EventAttendeesScreen({ route, navigation }) {
   const [attendeeDetails, setAttendeeDetails] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchEventAndAttendees = async () => {
-      try {
-        // Fetch event details
-        const eventDoc = await getDoc(doc(db, 'events', eventId));
-        if (eventDoc.exists()) {
-          const eventData = { id: eventDoc.id, ...eventDoc.data() };
-          setEvent(eventData);
+  // extract fetch to a reusable function so we can call it after dedupe
+  const fetchEventAndAttendees = async () => {
+    setLoading(true);
+    try {
+      // Fetch event details
+      const eventDoc = await getDoc(doc(db, 'events', eventId));
+      if (eventDoc.exists()) {
+        const eventData = { id: eventDoc.id, ...eventDoc.data() };
+        setEvent(eventData);
 
-          // Get attendees array from event
-          const attendeesArray = eventData.attendees || [];
-          setAttendees(attendeesArray);
+        // Get attendees array from event
+        const attendeesArray = eventData.attendees || [];
+        setAttendees(attendeesArray);
 
-          // Fetch user details for each attendee
-          const attendeeList = [];
-          for (const attendee of attendeesArray) {
-            try {
-              const userDoc = await getDoc(doc(db, 'users', attendee.uid));
-              if (userDoc.exists()) {
-                attendeeList.push({
-                  uid: attendee.uid,
-                  displayName: attendee.name || userDoc.data().displayName || 'Unknown',
-                  email: userDoc.data().email || 'N/A',
-                  photoURL: userDoc.data().photoURL || 'https://i.pravatar.cc/100',
-                  scannedAt: attendee.scannedAt,
-                });
-              } else {
-                attendeeList.push({
-                  uid: attendee.uid,
-                  displayName: attendee.name || 'Unknown User',
-                  email: 'N/A',
-                  photoURL: 'https://i.pravatar.cc/100',
-                  scannedAt: attendee.scannedAt,
-                });
-              }
-            } catch (err) {
-              console.error('Error fetching user:', attendee.uid, err);
+        // Fetch user details for each attendee
+        const attendeeList = [];
+        for (const attendee of attendeesArray) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', attendee.uid));
+            if (userDoc.exists()) {
+              attendeeList.push({
+                uid: attendee.uid,
+                displayName: attendee.name || userDoc.data().displayName || 'Unknown',
+                email: userDoc.data().email || 'N/A',
+                photoURL: userDoc.data().photoURL || 'https://i.pravatar.cc/100',
+                scannedAt: attendee.scannedAt,
+              });
+            } else {
               attendeeList.push({
                 uid: attendee.uid,
                 displayName: attendee.name || 'Unknown User',
@@ -67,20 +58,31 @@ export default function EventAttendeesScreen({ route, navigation }) {
                 scannedAt: attendee.scannedAt,
               });
             }
+          } catch (err) {
+            console.error('Error fetching user:', attendee.uid, err);
+            attendeeList.push({
+              uid: attendee.uid,
+              displayName: attendee.name || 'Unknown User',
+              email: 'N/A',
+              photoURL: 'https://i.pravatar.cc/100',
+              scannedAt: attendee.scannedAt,
+            });
           }
-          setAttendeeDetails(attendeeList);
-        } else {
-          Alert.alert('Error', 'Event not found');
-          navigation.goBack();
         }
-      } catch (error) {
-        console.error('Error fetching event or attendees:', error);
-        Alert.alert('Error', 'Failed to load attendees');
-      } finally {
-        setLoading(false);
+        setAttendeeDetails(attendeeList);
+      } else {
+        Alert.alert('Error', 'Event not found');
+        navigation.goBack();
       }
-    };
+    } catch (error) {
+      console.error('Error fetching event or attendees:', error);
+      Alert.alert('Error', 'Failed to load attendees');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchEventAndAttendees();
   }, [eventId]);
 
@@ -135,6 +137,60 @@ export default function EventAttendeesScreen({ route, navigation }) {
               <Text style={styles.eventTitle}>{event.title}</Text>
               <Text style={styles.eventDate}>{event.date} • {event.time}</Text>
             </View>
+            <TouchableOpacity
+              style={{ padding: 8 }}
+              onPress={async () => {
+                // Confirm
+                Alert.alert('Remove duplicates', 'This will remove duplicate attendee entries (keep earliest). Continue?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Yes', onPress: async () => {
+                    try {
+                      setLoading(true);
+                      const eventRef = doc(db, 'events', eventId);
+                      const eDoc = await getDoc(eventRef);
+                      if (!eDoc.exists()) {
+                        Alert.alert('Error', 'Event not found');
+                        setLoading(false);
+                        return;
+                      }
+                      const arr = eDoc.data().attendees || [];
+                      const map = new Map();
+                      // keep earliest scannedAt (first occurrence)
+                      for (const a of arr) {
+                        if (!a || !a.uid) continue;
+                        if (!map.has(a.uid)) map.set(a.uid, a);
+                        else {
+                          // compare scannedAt if present and keep earliest
+                          try {
+                            const existing = map.get(a.uid);
+                            const existingTime = existing?.scannedAt?.toDate ? existing.scannedAt.toDate().getTime() : (new Date(existing.scannedAt || 0)).getTime();
+                            const newTime = a?.scannedAt?.toDate ? a.scannedAt.toDate().getTime() : (new Date(a.scannedAt || 0)).getTime();
+                            if (newTime < existingTime) map.set(a.uid, a);
+                          } catch (err) { /* ignore */ }
+                        }
+                      }
+                      const deduped = Array.from(map.values());
+                      if (deduped.length === arr.length) {
+                        Alert.alert('No duplicates', 'No duplicate attendees were found');
+                        setLoading(false);
+                        return;
+                      }
+                      await updateDoc(eventRef, { attendees: deduped });
+                      Alert.alert('Done', `Removed ${arr.length - deduped.length} duplicate(s)`);
+                      // refresh
+                      await fetchEventAndAttendees();
+                    } catch (err) {
+                      console.error('Error deduping attendees:', err);
+                      Alert.alert('Error', 'Failed to remove duplicates');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                ]);
+              }}
+            >
+              <MaterialCommunityIcons name="database-refresh" size={22} color="#7C3AED" />
+            </TouchableOpacity>
           </View>
         )}
 
@@ -154,7 +210,7 @@ export default function EventAttendeesScreen({ route, navigation }) {
             <FlatList
               data={attendeeDetails}
               renderItem={renderAttendeeItem}
-              keyExtractor={(item) => item.uid}
+              keyExtractor={(item, index) => `${item.uid}_${index}`}
               scrollEnabled={false}
             />
           ) : (

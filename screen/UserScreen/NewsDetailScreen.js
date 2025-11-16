@@ -8,8 +8,10 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
+  ImageBackground,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { auth, db } from "../../firebase/firebaseConfig";
 import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc } from "firebase/firestore";
 
@@ -81,41 +83,57 @@ export default function NewsDetailScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header with back and bookmark buttons */}
-        <View style={styles.headerBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.actionButton}>
-            <Ionicons name="chevron-back" size={28} color="#0F172A" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={toggleBookmark} style={styles.actionButton} disabled={loading}>
-            <MaterialCommunityIcons
-              name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={26}
-              color={isBookmarked ? "#7C3AED" : "#64748B"}
-            />
-          </TouchableOpacity>
-        </View>
+        {/* Hero Section with Image and Gradient Overlay */}
+        <View style={styles.heroContainer}>
+          {news.image ? (
+            <ImageBackground 
+              source={{ uri: news.image }} 
+              style={styles.heroImage}
+              imageStyle={styles.heroImageStyle}
+            >
+              <LinearGradient
+                colors={["transparent", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.7)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.gradientOverlay}
+              >
+                {/* Top Action Bar */}
+                <View style={styles.heroTopBar}>
+                  <TouchableOpacity onPress={() => navigation.goBack()} style={styles.heroButton}>
+                    <Ionicons name="chevron-back" size={28} color="#fff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={toggleBookmark} style={styles.heroButton} disabled={loading}>
+                    <MaterialCommunityIcons
+                      name={isBookmarked ? "bookmark" : "bookmark-outline"}
+                      size={26}
+                      color={isBookmarked ? "#FFC107" : "#fff"}
+                    />
+                  </TouchableOpacity>
+                </View>
 
-        {/* Featured Image */}
-        {news.image ? (
-          <Image source={{ uri: news.image }} style={styles.headerImage} />
-        ) : (
-          <View style={[styles.headerImage, { backgroundColor: '#E6EEF8', justifyContent: 'center', alignItems: 'center' }]}>
-            <MaterialCommunityIcons name="image-off-outline" size={48} color="#94A3B8" />
-          </View>
-        )}
+                {/* Content Overlay */}
+                <View style={styles.heroContent}>
+                  {/* Category Badge */}
+                  {news.category && (
+                    <View style={styles.heroCategoryBadge}>
+                      <Text style={styles.heroCategoryText}>{news.category}</Text>
+                    </View>
+                  )}
+
+                  {/* Title */}
+                  <Text style={styles.heroTitle}>{news.title}</Text>
+                </View>
+              </LinearGradient>
+            </ImageBackground>
+          ) : (
+            <View style={[styles.heroImage, { backgroundColor: '#E6EEF8', justifyContent: 'center', alignItems: 'center' }]}>
+              <MaterialCommunityIcons name="image-off-outline" size={48} color="#94A3B8" />
+            </View>
+          )}
+        </View>
 
         {/* Content Container */}
         <View style={styles.content}>
-          {/* Category Badge */}
-          {news.category && (
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{news.category}</Text>
-            </View>
-          )}
-
-          {/* Title */}
-          <Text style={styles.title}>{news.title}</Text>
-
           {/* Meta Information */}
           <View style={styles.metaContainer}>
             <Image
@@ -156,76 +174,110 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
-  headerBar: {
+  heroContainer: {
+    width: "100%",
+    height: 360,
+    overflow: "hidden",
+  },
+  heroImage: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "space-between",
+  },
+  heroImageStyle: {
+    resizeMode: "cover",
+  },
+  gradientOverlay: {
+    flex: 1,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+  },
+  heroTopBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
+    paddingTop: 12,
+    paddingHorizontal: 4,
   },
-  actionButton: { padding: 8 },
-  headerImage: {
-    width: "100%",
-    height: 280,
-    backgroundColor: "#E6EEF8",
-    marginTop: 50,
+  heroButton: {
+    padding: 8,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: 8,
   },
-  content: {
-    padding: 16,
+  heroContent: {
+    paddingBottom: 24,
   },
-  categoryBadge: {
-    backgroundColor: "#EEF2FF",
+  heroCategoryBadge: {
+    backgroundColor: "#2563EB",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     alignSelf: "flex-start",
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  categoryText: { color: "#7C3AED", fontSize: 12, fontWeight: "700" },
-  title: {
-    fontSize: 24,
+  heroCategoryText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  heroTitle: {
+    fontSize: 28,
     fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 16,
-    lineHeight: 32,
+    color: "#fff",
+    lineHeight: 36,
+  },
+  content: {
+    padding: 16,
   },
   metaContainer: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 16,
   },
-  authorAvatar: { width: 44, height: 44, borderRadius: 22, marginRight: 12 },
-  metaInfo: { flex: 1 },
-  authorName: { fontSize: 15, fontWeight: "700", color: "#0F172A" },
+  authorAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+  },
+  metaInfo: {
+    flex: 1,
+  },
+  authorName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
   date: {
     fontSize: 12,
     color: "#64748B",
     marginTop: 2,
   },
-  divider: { height: 1, backgroundColor: "#E2E8F0", marginVertical: 16 },
+  divider: {
+    height: 1,
+    backgroundColor: "#E2E8F0",
+    marginVertical: 16,
+  },
   body: {
     fontSize: 16,
     color: "#475569",
     lineHeight: 26,
     marginBottom: 24,
   },
-  infoSection: { backgroundColor: "#EEF2FF", borderRadius: 12, padding: 16 },
-  infoRow: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
-  infoText: { fontSize: 14, color: "#0F172A", marginLeft: 12, fontWeight: "600" },
-  backButton: {
-    position: "absolute",
-    top: 40,
-    left: 16,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    padding: 8,
-    borderRadius: 50,
+  infoSection: {
+    backgroundColor: "#EEF2FF",
+    borderRadius: 12,
+    padding: 16,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: "#0F172A",
+    marginLeft: 12,
+    fontWeight: "600",
   },
 });

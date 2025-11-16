@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Modal, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, SafeAreaView } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { db } from '../../firebase/firebaseConfig';
-import { collection, query, where, onSnapshot, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 export default function ManageNewsScreen() {
   const navigation = useNavigation();
@@ -12,9 +12,8 @@ export default function ManageNewsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [newsList, setNewsList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedNews, setSelectedNews] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [updating, setUpdating] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Fetch news with statuses Approved, Pending, Declined/Rejected from Firebase
   useEffect(() => {
@@ -38,15 +37,17 @@ export default function ManageNewsScreen() {
         });
         setNewsList(newsData);
         setLoading(false);
+        setRefreshing(false);
       },
       (error) => {
         console.error('Error fetching news:', error);
         setLoading(false);
+        setRefreshing(false);
       }
     );
 
     return unsubscribe;
-  }, [isFocused]);
+  }, [isFocused, refreshKey]);
 
   // Filter by search query
   const filteredNews = newsList.filter((item) =>
@@ -54,32 +55,8 @@ export default function ManageNewsScreen() {
   );
 
   const openNewsDetail = (item) => {
-    // If it's an event, go directly to EventDetail screen
-    if (item.eventId) {
-      navigation.navigate('EventDetail', { eventId: item.eventId });
-    } else {
-      // Otherwise show modal for regular news
-      setSelectedNews(item);
-      setModalVisible(true);
-    }
-  };
-
-  const closeModal = () => {
-    setModalVisible(false);
-    setSelectedNews(null);
-  };
-
-  const handleAction = async (id, newStatus) => {
-    setUpdating(true);
-    try {
-      await updateDoc(doc(db, 'news', id), { status: newStatus });
-      closeModal();
-    } catch (error) {
-      console.error('Error updating news:', error);
-      alert('Failed to update news');
-    } finally {
-      setUpdating(false);
-    }
+    // Navigate to NewsDetailScreen for both regular news and events
+    navigation.navigate('NewsDetail', { newsItem: item });
   };
 
   const renderItem = ({ item }) => (
@@ -143,102 +120,10 @@ export default function ManageNewsScreen() {
           keyExtractor={(item) => item.firebaseId}
           contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); setRefreshKey(k => k + 1); }}
         />
       )}
-
-      {/* Modal to show full article */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={closeModal}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={closeModal}>
-              <Ionicons name="chevron-back" size={28} color="#1E293B" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Article</Text>
-            <View style={{ width: 28 }} />
-          </View>
-
-          {selectedNews && (
-            <ScrollView style={styles.modalScroll} contentContainerStyle={{ paddingBottom: 20 }}>
-              {selectedNews.imageUrl && (
-                <Image source={{ uri: selectedNews.imageUrl }} style={styles.modalImage} />
-              )}
-
-              <View style={styles.modalBody}>
-                <Text style={styles.modalNewsTitle}>{selectedNews.title}</Text>
-
-                <View style={styles.modalMeta}>
-                  <Text style={styles.modalAuthor}>{selectedNews.author || 'Unknown'}</Text>
-                  <Text style={styles.modalDate}>{selectedNews.date || 'Recently'}</Text>
-                </View>
-
-                {selectedNews.category && (
-                  <View style={styles.categoryBadgeModal}>
-                    <Text style={styles.categoryTextModal}>{selectedNews.category}</Text>
-                  </View>
-                )}
-
-                <Text style={styles.modalContentText}>
-                  {selectedNews.content}
-                </Text>
-              </View>
-
-              {/* Action buttons - only show for regular news, not events */}
-              {!selectedNews.eventId && (
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.declineButton]}
-                  onPress={() => handleAction(selectedNews.firebaseId, 'Declined')}
-                  disabled={updating}
-                >
-                  {updating ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <MaterialCommunityIcons name="close-circle-outline" size={20} color="#fff" />
-                      <Text style={styles.actionButtonText}>Decline</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.approveButton]}
-                  onPress={() => handleAction(selectedNews.firebaseId, 'Approved')}
-                  disabled={updating}
-                >
-                  {updating ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <MaterialCommunityIcons name="check-circle-outline" size={20} color="#fff" />
-                      <Text style={styles.actionButtonText}>Approve</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-              )}
-
-              {/* View Event button - show for events */}
-              {selectedNews.eventId && (
-              <TouchableOpacity
-                style={styles.viewEventButton}
-                onPress={() => {
-                  closeModal();
-                  navigation.navigate('EventDetail', { eventId: selectedNews.eventId });
-                }}
-              >
-                <MaterialCommunityIcons name="calendar-check" size={20} color="#fff" />
-                <Text style={styles.viewEventButtonText}>View Event Details</Text>
-              </TouchableOpacity>
-              )}
-            </ScrollView>
-          )}
-        </SafeAreaView>
-      </Modal>
 
       {/* Floating Create (+) button */}
       <TouchableOpacity
@@ -292,33 +177,12 @@ const styles = StyleSheet.create({
   date: { fontSize: 11, color: '#94A3B8', marginBottom: 6 },
   categoryBadge: { backgroundColor: '#EEF2FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' },
   categoryText: { color: '#7C3AED', fontSize: 11, fontWeight: '700' },
-
-  // Modal
-  modalContainer: { flex: 1, backgroundColor: '#F8FAFC' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B' },
-  modalScroll: { flex: 1 },
-  modalImage: { width: '100%', height: 240 },
-  modalBody: { paddingHorizontal: 16, paddingTop: 16 },
-  modalNewsTitle: { fontSize: 20, fontWeight: '700', color: '#1E293B', marginBottom: 12 },
-  modalMeta: { flexDirection: 'row', marginBottom: 12, alignItems: 'center' },
-  modalAuthor: { fontSize: 13, fontWeight: '700', color: '#0F172A', marginRight: 12 },
-  modalDate: { fontSize: 12, color: '#94A3B8' },
-  categoryBadgeModal: { backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 16 },
-  categoryTextModal: { color: '#7C3AED', fontSize: 12, fontWeight: '700' },
-  modalContentText: { fontSize: 15, lineHeight: 22, color: '#475569' },
-  actionButtons: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 16, gap: 12 },
-  actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, gap: 8 },
-  declineButton: { backgroundColor: '#EF4444' },
-  approveButton: { backgroundColor: '#10B981' },
-  actionButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  viewEventButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#7C3AED', borderRadius: 12, paddingVertical: 14, marginTop: 16, gap: 8 },
-  viewEventButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   statusBadge: { marginTop: 6, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   statusText: { color: '#fff', fontWeight: '700', fontSize: 11 },
   statusApproved: { backgroundColor: '#10B981' },
   statusPending: { backgroundColor: '#F59E0B' },
   statusDeclined: { backgroundColor: '#EF4444' },
+  
   /* Floating action button */
   fab: {
     position: 'absolute',

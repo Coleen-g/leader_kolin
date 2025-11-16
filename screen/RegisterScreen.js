@@ -12,7 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { auth, db } from "../firebase/firebaseConfig";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { doc, setDoc, Timestamp } from "firebase/firestore";
 
 export default function RegisterScreen() {
   const navigation = useNavigation();
@@ -20,6 +20,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const validateEmail = (e) => {
     const re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\\.,;:\s@\"]+\.)+[^<>()[\]\\.,;:\s@\"]{2,})$/i;
@@ -48,10 +49,11 @@ export default function RegisterScreen() {
       }
 
       // Create Firestore document for user with role
-      await addDoc(collection(db, "users"), {
+      await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         username: username,
         email: email,
+        displayName: username,
         role: "User",
         createdAt: Timestamp.now(),
       });
@@ -112,10 +114,17 @@ export default function RegisterScreen() {
               style={styles.input}
               placeholder="Password"
               placeholderTextColor="#CBCBCB"
-              secureTextEntry
+              secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
             />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <MaterialCommunityIcons 
+                name={showPassword ? "eye-outline" : "eye-off-outline"} 
+                size={20} 
+                color="#7C3AED" 
+              />
+            </TouchableOpacity>
           </View>
 
           {/* Register Button */}

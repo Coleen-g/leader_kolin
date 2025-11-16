@@ -17,6 +17,7 @@ import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import DashboardScreen from "../screen/AdminScreen/DashboardScreen";
 import CategoriesScreen from "../screen/AdminScreen/CategoriesScreen";
 import ManageNewsScreen from "../screen/AdminScreen/ManageNewsScreen";
+import NewsDetailScreen from "../screen/AdminScreen/NewsDetailScreen";
 import ManageUsersScreen from "../screen/AdminScreen/ManageUsersScreen";
 import AddUserScreen from "../screen/AdminScreen/AddUserScreen";
 import EditUserScreen from "../screen/AdminScreen/EditUserScreen";
@@ -169,6 +170,15 @@ export default function AdminDrawerNavigator() {
         component={CreateNewsScreen}
         options={{
           title: "Create News",
+          headerStyle: { backgroundColor: "#667EEA" },
+          headerTintColor: "#fff",
+        }}
+      />
+      <Stack.Screen
+        name="NewsDetail"
+        component={NewsDetailScreen}
+        options={{
+          title: "News Details",
           headerStyle: { backgroundColor: "#667EEA" },
           headerTintColor: "#fff",
         }}

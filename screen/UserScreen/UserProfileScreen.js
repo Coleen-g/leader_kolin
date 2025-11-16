@@ -1,27 +1,31 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, SafeAreaView, Image, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, SafeAreaView, Image, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from 'expo-image-picker';
 import { auth, db } from "../../firebase/firebaseConfig";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged, updateProfile } from "firebase/auth";
+import { doc, getDoc, updateDoc, onSnapshot, setDoc } from "firebase/firestore";
+import { uploadImageToCloudinary } from '../../utils/cloudinary';
 
 export default function UserProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
+    let unsubDoc = null;
     const unsub = onAuthStateChanged(auth, (u) => {
       if (!u) {
         setUser(null);
         setLoading(false);
+        if (unsubDoc) unsubDoc();
         return;
       }
 
-      const fetchUserDoc = async () => {
-        setLoading(true);
-        try {
-          const userRef = doc(db, "users", u.uid);
-          const snap = await getDoc(userRef);
+      setLoading(true);
+      try {
+        const userRef = doc(db, 'users', u.uid);
+        unsubDoc = onSnapshot(userRef, (snap) => {
           if (snap.exists()) {
             const data = snap.data();
             setUser({
@@ -34,7 +38,6 @@ export default function UserProfileScreen({ navigation }) {
               following: data.following || 0,
             });
           } else {
-            // If user doc doesn't exist, fall back to auth info
             setUser({
               uid: u.uid,
               displayName: u.displayName || u.email || 'User',
@@ -45,26 +48,21 @@ export default function UserProfileScreen({ navigation }) {
               following: 0,
             });
           }
-        } catch (err) {
-          console.error('Error fetching user doc:', err);
-          setUser({
-            uid: u.uid,
-            displayName: u.displayName || u.email || 'User',
-            email: u.email,
-            username: '@user',
-            photoURL: u.photoURL || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
-            followers: 0,
-            following: 0,
-          });
-        } finally {
           setLoading(false);
-        }
-      };
-
-      fetchUserDoc();
+        }, (err) => {
+          console.error('User doc snapshot error:', err);
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error('Error subscribing to user doc:', err);
+        setLoading(false);
+      }
     });
 
-    return () => unsub();
+    return () => {
+      try { unsub(); } catch (e) {}
+      try { if (unsubDoc) unsubDoc(); } catch (e) {}
+    };
   }, []);
 
   if (loading) {
@@ -80,7 +78,44 @@ export default function UserProfileScreen({ navigation }) {
      
       {/* Profile Info */}
       <View style={styles.profileCard}>
-        <Image source={{ uri: user?.photoURL }} style={styles.avatar} />
+        <TouchableOpacity onPress={async () => {
+          try {
+            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permission.granted) return Alert.alert('Permission required', 'Permission to access photos is required to change avatar.');
+            const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1,1], quality: 0.8 });
+            if (result.canceled) return;
+            const asset = result.assets ? result.assets[0] : result;
+            if (!asset || !asset.uri) return;
+
+            setUploading(true);
+            console.log('Uploading image to Cloudinary...');
+            const uploadedUrl = await uploadImageToCloudinary(asset);
+            console.log('Upload result:', uploadedUrl);
+
+            if (!uploadedUrl) {
+              Alert.alert('Error', 'Image upload to Cloudinary failed. Please check your Cloudinary preset settings.');
+              setUploading(false);
+              return;
+            }
+
+            const u = auth.currentUser;
+            if (u) {
+              const userRef = doc(db, 'users', u.uid);
+              await updateDoc(userRef, { photoURL: uploadedUrl });
+              try { await updateProfile(u, { photoURL: uploadedUrl }); } catch (err) { console.warn('Failed to update auth profile photoURL:', err); }
+              setUser((prev) => ({ ...(prev || {}), photoURL: uploadedUrl }));
+              Alert.alert('Success', 'Profile photo updated');
+            }
+          } catch (err) {
+            console.error('Error updating avatar:', err);
+            Alert.alert('Error', err.message || 'Failed to update avatar');
+          } finally {
+            setUploading(false);
+          }
+        }}>
+          <Image source={{ uri: user?.photoURL }} style={styles.avatar} />
+        </TouchableOpacity>
+        {uploading && <ActivityIndicator style={{ position: 'absolute', top: 40 }} size="small" color="#3B82F6" />}
         <Text style={styles.name}>{user?.displayName}</Text>
         <Text style={styles.username}>{user?.username}</Text>
         <Text style={styles.email}>{user?.email}</Text>

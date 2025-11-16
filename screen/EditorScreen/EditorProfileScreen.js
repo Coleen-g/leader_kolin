@@ -1,31 +1,33 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Image, ScrollView, ActivityIndicator, Platform, StatusBar } from "react-native";
+import { View, Text, StyleSheet, Image, ScrollView, ActivityIndicator, Platform, StatusBar, TouchableOpacity } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialIcons, FontAwesome, FontAwesome5 } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { auth, db } from '../../firebase/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp, onSnapshot } from 'firebase/firestore';
 
 export default function ProfileScreen() {
+  const navigation = useNavigation();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let unsubDoc = null;
     const unsub = onAuthStateChanged(auth, (u) => {
       if (!u) {
         setUser(null);
         setLoading(false);
+        if (unsubDoc) unsubDoc();
         return;
       }
 
-      const fetchUserDoc = async () => {
-        setLoading(true);
-        try {
-          const userRef = doc(db, "users", u.uid);
-          const snap = await getDoc(userRef);
+      setLoading(true);
+      try {
+        const userRef = doc(db, "users", u.uid);
+        unsubDoc = onSnapshot(userRef, (snap) => {
           if (snap.exists()) {
             const data = snap.data();
-            console.log('✅ User doc found:', data);
             setUser({
               uid: u.uid,
               displayName: data.name || data.displayName || u.displayName || 'User',
@@ -39,7 +41,6 @@ export default function ProfileScreen() {
               facebook: data.facebook || '',
             });
           } else {
-            console.log('❌ No Firestore doc, creating one from auth data');
             const newUserData = {
               uid: u.uid,
               username: u.displayName || u.email?.split('@')[0] || 'editor',
@@ -51,8 +52,7 @@ export default function ProfileScreen() {
             };
 
             try {
-              await setDoc(userRef, newUserData);
-              console.log('✅ User doc created successfully');
+              setDoc(userRef, newUserData);
             } catch (createErr) {
               console.error('Error creating user doc:', createErr);
             }
@@ -70,29 +70,21 @@ export default function ProfileScreen() {
               facebook: '',
             });
           }
-        } catch (err) {
-          console.error('Error fetching user doc:', err);
-          setUser({
-            uid: u.uid,
-            displayName: u.displayName || u.email || 'User',
-            email: u.email,
-            username: u.displayName || u.email?.split('@')[0] || '@user',
-            role: 'Editor',
-            photoURL: u.photoURL || 'https://i.pravatar.cc/300',
-            mobile: '',
-            twitter: '',
-            behance: '',
-            facebook: '',
-          });
-        } finally {
           setLoading(false);
-        }
-      };
-
-      fetchUserDoc();
+        }, (err) => {
+          console.error('User doc snapshot error:', err);
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error('Error subscribing to user doc:', err);
+        setLoading(false);
+      }
     });
 
-    return () => unsub();
+    return () => {
+      try { unsub(); } catch (e) {}
+      try { if (unsubDoc) unsubDoc(); } catch (e) {}
+    };
   }, []);
 
   if (loading) {
@@ -108,7 +100,9 @@ export default function ProfileScreen() {
       {/* Header */}
       <LinearGradient colors={["#667EEA", "#7C3AED", "#6D28D9"]} style={styles.header}>
         
-        <Ionicons name="settings-sharp" size={26} color="#fff" style={styles.settingsIcon} />
+        <TouchableOpacity style={styles.editIcon} onPress={() => navigation.navigate('EditEditorProfile', { uid: user?.uid })}>
+          <Ionicons name="pencil" size={22} color="#fff" />
+        </TouchableOpacity>
 
         {/* Profile Picture */}
         <Image
@@ -129,7 +123,7 @@ export default function ProfileScreen() {
           <MaterialIcons name="smartphone" size={22} color="#555" />
           <View style={styles.textBox}>
             <Text style={styles.label}>Mobile</Text>
-            <Text style={styles.info}>{user?.mobile || ''}</Text>
+            <Text style={styles.info}>{user?.mobile || '-'}</Text>
           </View>
         </View>
 
@@ -140,7 +134,7 @@ export default function ProfileScreen() {
           <FontAwesome name="twitter" size={22} color="#1DA1F2" />
           <View style={styles.textBox}>
             <Text style={styles.label}>Twitter</Text>
-            <Text style={styles.info}>{user?.twitter || ''}</Text>
+            <Text style={styles.info}>{user?.twitter || '-'}</Text>
           </View>
         </View>
 
@@ -151,7 +145,7 @@ export default function ProfileScreen() {
           <FontAwesome5 name="behance" size={22} color="#1769FF" />
           <View style={styles.textBox}>
             <Text style={styles.label}>Behance</Text>
-            <Text style={styles.info}>{user?.behance || ''}</Text>
+            <Text style={styles.info}>{user?.behance || '-'}</Text>
           </View>
         </View>
 
@@ -162,7 +156,7 @@ export default function ProfileScreen() {
           <FontAwesome name="facebook-square" size={22} color="#1877F2" />
           <View style={styles.textBox}>
             <Text style={styles.label}>Facebook</Text>
-            <Text style={styles.info}>{user?.facebook || ''}</Text>
+            <Text style={styles.info}>{user?.facebook || '-'}</Text>
           </View>
         </View>
       </View>
@@ -184,7 +178,7 @@ const styles = StyleSheet.create({
 
 
   backIcon: { position: "absolute", left: 20, top: 45 },
-  settingsIcon: { position: "absolute", right: 20, top: 45 },
+  editIcon: { position: "absolute", right: 20, top: 45 },
 
   profileText: { color: "#fff", fontSize: 20, fontWeight: "700" },
 
