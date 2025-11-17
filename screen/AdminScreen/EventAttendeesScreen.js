@@ -127,12 +127,6 @@ export default function EventAttendeesScreen({ route, navigation }) {
         {/* Event Header */}
         {event && (
           <View style={styles.eventHeader}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="chevron-back" size={28} color="#7C3AED" />
-            </TouchableOpacity>
             <View style={styles.eventInfo}>
               <Text style={styles.eventTitle}>{event.title}</Text>
               <Text style={styles.eventDate}>{event.date} • {event.time}</Text>

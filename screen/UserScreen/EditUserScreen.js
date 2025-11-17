@@ -129,14 +129,6 @@ export default function EditUserScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
-          <Ionicons name="chevron-back" size={26} color="#0F172A" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
-        <View style={{ width: 44 }} />
-      </View>
-
       <View style={styles.card}>
         <View style={{ alignItems: 'center', marginBottom: 12 }}>
           <TouchableOpacity onPress={handleChangePhoto} style={{ alignItems: 'center' }}>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, SafeAreaView } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation, useIsFocused, CommonActions } from '@react-navigation/native';
 import { db } from '../../firebase/firebaseConfig';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
@@ -55,8 +55,18 @@ export default function ManageNewsScreen() {
   );
 
   const openNewsDetail = (item) => {
-    // Navigate to NewsDetailScreen for both regular news and events
-    navigation.navigate('NewsDetail', { newsItem: item });
+    // If the item is an event (category contains 'event') and has an eventId,
+    // navigate to the EventDetail screen. Otherwise open the NewsDetail screen.
+    const cat = String(item.category || '').toLowerCase();
+    if (cat.includes('event') && item.eventId) {
+      navigation.dispatch(
+        CommonActions.navigate({ name: 'EventDetail', params: { eventId: item.eventId } })
+      );
+      return;
+    }
+    navigation.dispatch(
+      CommonActions.navigate({ name: 'NewsDetail', params: { newsItem: item } })
+    );
   };
 
   const renderItem = ({ item }) => (
@@ -76,9 +86,20 @@ export default function ManageNewsScreen() {
           </View>
         )}
         {item.category && (
-          <View style={styles.categoryBadge}>
+          <TouchableOpacity
+            onPress={() => {
+              const cat = String(item.category || '').toLowerCase();
+              if (cat.includes('event') && item.eventId) {
+                navigation.dispatch(
+                  CommonActions.navigate({ name: 'EventDetail', params: { eventId: item.eventId } })
+                );
+                return;
+              }
+            }}
+            style={styles.categoryBadge}
+          >
             <Text style={styles.categoryText}>{item.category}</Text>
-          </View>
+          </TouchableOpacity>
         )}
       </View>
       <Ionicons name="chevron-forward" size={24} color="#94A3B8" />

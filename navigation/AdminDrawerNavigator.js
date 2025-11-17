@@ -152,6 +152,22 @@ function DrawerScreens() {
           ),
         }}
       />
+      {/* Hidden screens for programmatic navigation */}
+      <Drawer.Screen
+        name="AddEvent"
+        component={AddEventScreen}
+        options={{ drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="AddUser"
+        component={AddUserScreen}
+        options={{ drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="EditUser"
+        component={EditUserScreen}
+        options={{ drawerItemStyle: { height: 0 } }}
+      />
     </Drawer.Navigator>
   );
 }

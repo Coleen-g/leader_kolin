@@ -89,6 +89,22 @@ export default function HelpSupportScreen({ navigation }) {
     Linking.openURL('tel:+15551234567');
   };
 
+  const navigateToProfileTab = () => {
+    try {
+      let nav = navigation;
+      while (nav) {
+        const state = nav.getState && nav.getState();
+        if (state && Array.isArray(state.routeNames) && state.routeNames.includes('Home')) {
+          nav.navigate('Home', { screen: 'ProfileTab' });
+          return;
+        }
+        nav = nav.getParent && nav.getParent();
+      }
+    } catch (e) {
+      try { navigation.navigate('SettingsMain'); } catch (err) {}
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View
@@ -97,7 +113,7 @@ export default function HelpSupportScreen({ navigation }) {
           { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 8 : 12 },
         ]}
       >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={navigateToProfileTab} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Help & Support</Text>

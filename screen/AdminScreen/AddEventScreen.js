@@ -13,6 +13,7 @@ import {
   StatusBar,
   Modal,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import QRCodeSVG from 'react-native-qrcode-svg';
 import * as ImagePicker from 'expo-image-picker';
@@ -28,6 +29,8 @@ export default function AddEventScreen({ navigation, route }) {
   const [description, setDescription] = useState(prefill.content || '');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [venue, setVenue] = useState('');
   const [attendanceType, setAttendanceType] = useState('QR');
   const [image, setImage] = useState(prefill.image || null);
@@ -118,94 +121,169 @@ export default function AddEventScreen({ navigation, route }) {
     }
   };
 
+  // Helpers to safely parse stored date/time strings into Date objects
+  const parseDateValue = (dateStr) => {
+    if (!dateStr) return new Date();
+    const parts = String(dateStr).split('-');
+    if (parts.length === 3) {
+      const yyyy = parseInt(parts[0], 10);
+      const mm = parseInt(parts[1], 10) - 1;
+      const dd = parseInt(parts[2], 10);
+      const d = new Date(yyyy, mm, dd);
+      return isNaN(d.getTime()) ? new Date() : d;
+    }
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? new Date() : d;
+  };
+
+  const parseTimeValue = (timeStr) => {
+    if (!timeStr) return new Date();
+    const parts = String(timeStr).split(':');
+    if (parts.length >= 2) {
+      const hh = parseInt(parts[0], 10) || 0;
+      const mm = parseInt(parts[1], 10) || 0;
+      const d = new Date(1970, 0, 1, hh, mm, 0);
+      return isNaN(d.getTime()) ? new Date() : d;
+    }
+    const d = new Date(`1970-01-01T${timeStr}:00`);
+    return isNaN(d.getTime()) ? new Date() : d;
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <View style={styles.headerRow}>
-        <Text style={styles.header}>Create Event</Text>
-        <Text style={styles.sub}>Add event details and generate QR</Text>
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.inputGroup}>
-          <MaterialCommunityIcons name="format-title" size={20} color="#7C3AED" style={styles.inputIcon} />
-          <TextInput style={styles.input} placeholder="Event title" value={title} onChangeText={setTitle} />
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+        <View style={styles.headerRow}>
+          <Text style={styles.header}>Create Event</Text>
+          <Text style={styles.sub}>Add event details and generate QR</Text>
         </View>
 
-        <View style={styles.inputGroup}>
-          <MaterialCommunityIcons name="file-document-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
-          <TextInput style={[styles.input, styles.textArea]} placeholder="Description" value={description} onChangeText={setDescription} multiline numberOfLines={6} />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <MaterialCommunityIcons name="calendar" size={20} color="#7C3AED" style={styles.inputIcon} />
-          <TextInput style={styles.input} placeholder="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} />
-        </View>
-        <View style={styles.inputGroup}>
-          <MaterialCommunityIcons name="clock-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
-          <TextInput style={styles.input} placeholder="Time (HH:MM)" value={time} onChangeText={setTime} />
-        </View>
-        <View style={styles.inputGroup}>
-          <MaterialCommunityIcons name="map-marker-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
-          <TextInput style={styles.input} placeholder="Venue" value={venue} onChangeText={setVenue} />
-        </View>
-
-        <TouchableOpacity style={[styles.imagePicker, loading && { opacity: 0.6 }]} onPress={pickImage} disabled={loading}>
-          {image ? (
-            <Image source={{ uri: image.uri }} style={styles.previewImage} />
-          ) : (
-            <View style={styles.imagePickerContent}>
-              <MaterialCommunityIcons name="image-plus-outline" size={40} color="#7C3AED" />
-              <Text style={styles.imagePickerText}>Tap to select image (optional)</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <View style={{ marginTop: 8 }}>
-          <Text style={{ color: '#6B7280', fontWeight: '600', marginBottom: 8 }}>Attendance</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {['QR', 'Manual', 'Location'].map((t) => (
-              <TouchableOpacity key={t} onPress={() => setAttendanceType(t)} style={[styles.attendanceBtn, attendanceType === t && styles.attendanceBtnActive]}>
-                <Text style={[styles.attendanceText, attendanceType === t && { color: '#fff' }]}>{t}</Text>
-              </TouchableOpacity>
-            ))}
+        <View style={styles.card}>
+          <View style={styles.inputGroup}>
+            <MaterialCommunityIcons name="format-title" size={20} color="#7C3AED" style={styles.inputIcon} />
+            <TextInput style={styles.input} placeholder="Event title" value={title} onChangeText={setTitle} />
           </View>
-        </View>
 
-        <TouchableOpacity style={[styles.submitButton, loading && { opacity: 0.7 }]} onPress={handleCreate} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Create Event</Text>}
-        </TouchableOpacity>
+          <View style={styles.inputGroup}>
+            <MaterialCommunityIcons name="file-document-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
+            <TextInput style={[styles.input, styles.textArea]} placeholder="Description" value={description} onChangeText={setDescription} multiline numberOfLines={6} />
+          </View>
 
-        <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()} disabled={loading}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Modal visible={showQRModal} transparent animationType="slide" onRequestClose={() => setShowQRModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Event QR Code</Text>
-              <TouchableOpacity onPress={() => setShowQRModal(false)}>
-                <MaterialCommunityIcons name="close" size={24} color="#0F172A" />
-              </TouchableOpacity>
-            </View>
-            {createdEventId && (
-              <View style={{ alignItems: 'center', marginVertical: 16 }}>
-                <QRCodeSVG value={createdEventId} size={260} backgroundColor="#ffffff" color="#0F172A" />
-                <Text style={{ color: '#7C3AED', fontWeight: '700', marginTop: 12 }}>Event ID: {createdEventId}</Text>
-              </View>
-            )}
-            <TouchableOpacity style={styles.modalButton} onPress={() => {
-              setShowQRModal(false);
-              if (createdEventId) navigation.navigate('EventDetail', { eventId: createdEventId });
-              else navigation.goBack();
-            }}>
-              <Text style={styles.modalButtonText}>Done</Text>
+          {/* Date Picker Field */}
+          <View style={styles.inputGroup}>
+            <MaterialCommunityIcons name="calendar" size={20} color="#7C3AED" style={styles.inputIcon} />
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowDatePicker(true)}>
+              <Text style={[styles.input, { paddingVertical: 12, color: date ? '#0F172A' : '#A0AEC0' }]}> 
+                {date ? date : 'Select Date'}
+              </Text>
             </TouchableOpacity>
           </View>
+          {/* Time Picker Field */}
+          <View style={styles.inputGroup}>
+            <MaterialCommunityIcons name="clock-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowTimePicker(true)}>
+              <Text style={[styles.input, { paddingVertical: 12, color: time ? '#0F172A' : '#A0AEC0' }]}> 
+                {time ? time : 'Select Time'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.inputGroup}>
+            <MaterialCommunityIcons name="map-marker-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
+            <TextInput style={styles.input} placeholder="Venue" value={venue} onChangeText={setVenue} />
+          </View>
+
+          <TouchableOpacity style={[styles.imagePicker, loading && { opacity: 0.6 }]} onPress={pickImage} disabled={loading}>
+            {image ? (
+              <Image source={{ uri: image.uri }} style={styles.previewImage} />
+            ) : (
+              <View style={styles.imagePickerContent}>
+                <MaterialCommunityIcons name="image-plus-outline" size={40} color="#7C3AED" />
+                <Text style={styles.imagePickerText}>Tap to select image (optional)</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <View style={{ marginTop: 8 }}>
+            <Text style={{ color: '#6B7280', fontWeight: '600', marginBottom: 8 }}>Attendance</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {['QR', 'Manual', 'Location'].map((t) => (
+                <TouchableOpacity key={t} onPress={() => setAttendanceType(t)} style={[styles.attendanceBtn, attendanceType === t && styles.attendanceBtnActive]}>
+                  <Text style={[styles.attendanceText, attendanceType === t && { color: '#fff' }]}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <TouchableOpacity style={[styles.submitButton, loading && { opacity: 0.7 }]} onPress={handleCreate} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Create Event</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()} disabled={loading}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
-    </ScrollView>
+
+        <Modal visible={showQRModal} transparent animationType="slide" onRequestClose={() => setShowQRModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Event QR Code</Text>
+                <TouchableOpacity onPress={() => setShowQRModal(false)}>
+                  <MaterialCommunityIcons name="close" size={24} color="#0F172A" />
+                </TouchableOpacity>
+              </View>
+              {createdEventId && (
+                <View style={{ alignItems: 'center', marginVertical: 16 }}>
+                  <QRCodeSVG value={createdEventId} size={260} backgroundColor="#ffffff" color="#0F172A" />
+                  <Text style={{ color: '#7C3AED', fontWeight: '700', marginTop: 12 }}>Event ID: {createdEventId}</Text>
+                </View>
+              )}
+              <TouchableOpacity style={styles.modalButton} onPress={() => {
+                setShowQRModal(false);
+                if (createdEventId) navigation.navigate('EventDetail', { eventId: createdEventId });
+                else navigation.goBack();
+              }}>
+                <Text style={styles.modalButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </ScrollView>
+      {/* DateTimePickers rendered at root level for Android/iOS compatibility */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={parseDateValue(date)}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false);
+            if (selectedDate) {
+              // Format as YYYY-MM-DD
+              const yyyy = selectedDate.getFullYear();
+              const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+              const dd = String(selectedDate.getDate()).padStart(2, '0');
+              setDate(`${yyyy}-${mm}-${dd}`);
+            }
+          }}
+        />
+      )}
+      {showTimePicker && (
+        <DateTimePicker
+          value={parseTimeValue(time)}
+          mode="time"
+          is24Hour={true}
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedTime) => {
+            setShowTimePicker(false);
+            if (selectedTime) {
+              // Format as HH:MM
+              const hh = String(selectedTime.getHours()).padStart(2, '0');
+              const min = String(selectedTime.getMinutes()).padStart(2, '0');
+              setTime(`${hh}:${min}`);
+            }
+          }}
+        />
+      )}
+    </>
   );
 }
 

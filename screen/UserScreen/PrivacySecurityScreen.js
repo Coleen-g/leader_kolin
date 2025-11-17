@@ -21,6 +21,23 @@ export default function PrivacySecurityScreen({ navigation }) {
   const [profilePrivate, setProfilePrivate] = useState(false);
   const [dataCollection, setDataCollection] = useState(true);
 
+  const navigateToProfileTab = () => {
+    try {
+      let nav = navigation;
+      while (nav) {
+        const state = nav.getState && nav.getState();
+        if (state && Array.isArray(state.routeNames) && state.routeNames.includes('Home')) {
+          nav.navigate('Home', { screen: 'ProfileTab' });
+          return;
+        }
+        nav = nav.getParent && nav.getParent();
+      }
+    } catch (e) {
+      // fallback
+      try { navigation.navigate('SettingsMain'); } catch (err) {}
+    }
+  };
+
   const handleChangePassword = () => {
     if (!auth.currentUser || !auth.currentUser.email) {
       Alert.alert('Error', 'Unable to send password reset email');
@@ -80,7 +97,7 @@ export default function PrivacySecurityScreen({ navigation }) {
           { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 8 : 12 },
         ]}
       >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={navigateToProfileTab} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Privacy & Security</Text>

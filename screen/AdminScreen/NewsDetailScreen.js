@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, ScrollView, SafeAreaView, Alert } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import { db } from '../../firebase/firebaseConfig';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
@@ -55,13 +55,6 @@ export default function NewsDetailScreen({ route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={28} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Article Details</Text>
-        <View style={{ width: 28 }} />
-      </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 20 }}>
         {newsItem.imageUrl && (
@@ -83,9 +76,19 @@ export default function NewsDetailScreen({ route }) {
           </View>
 
           {newsItem.category && (
-            <View style={styles.categoryBadge}>
+            <TouchableOpacity
+              style={styles.categoryBadge}
+              onPress={() => {
+                const cat = String(newsItem.category || '').toLowerCase();
+                if (cat.includes('event') && newsItem.eventId) {
+                  navigation.dispatch(
+                    CommonActions.navigate({ name: 'EventDetail', params: { eventId: newsItem.eventId } })
+                  );
+                }
+              }}
+            >
               <Text style={styles.categoryText}>{newsItem.category}</Text>
-            </View>
+            </TouchableOpacity>
           )}
 
           {newsItem.status && (

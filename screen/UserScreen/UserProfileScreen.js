@@ -132,18 +132,14 @@ export default function UserProfileScreen({ navigation }) {
       <View style={styles.settingsContainer}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
 
-        <View style={styles.settingItem}>
-          <Ionicons name="notifications-outline" size={22} color="#3B82F6" />
-          <Text style={styles.settingText}>Notifications</Text>
-        </View>
-        <View style={styles.settingItem}>
+        <TouchableOpacity style={styles.settingItem} onPress={() => navigation.getParent()?.navigate('Settings', { screen: 'PrivacySecurity' })}>
           <Ionicons name="shield-checkmark-outline" size={22} color="#3B82F6" />
           <Text style={styles.settingText}>Privacy & Security</Text>
-        </View>
-        <View style={styles.settingItem}>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.settingItem} onPress={() => navigation.getParent()?.navigate('Settings', { screen: 'HelpSupport' })}>
           <Ionicons name="help-circle-outline" size={22} color="#3B82F6" />
           <Text style={styles.settingText}>Help & Support</Text>
-        </View>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

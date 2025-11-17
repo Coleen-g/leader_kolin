@@ -1,3 +1,4 @@
+      {/* No hidden admin screens here; only user drawer screens allowed */}
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -26,11 +27,17 @@ import UserNewsScreen from "../screen/UserScreen/UserNewsScreen"; // News tab
 import UserSettingsScreen from "../screen/UserScreen/UserSettingsScreen";
 import AboutScreen from "../screen/UserScreen/AboutScreen"; // About screen
 import HelpScreen from "../screen/UserScreen/HelpScreen";
+import PrivacySecurityScreen from "../screen/UserScreen/PrivacySecurityScreen";
+import HelpSupportScreen from "../screen/UserScreen/HelpSupportScreen";
 import UserProfileScreen from "../screen/UserScreen/UserProfileScreen";
 import FavoritesScreen from "../screen/UserScreen/FavoritesScreen"; // Favorites tab
 import NewsDetailScreen from "../screen/UserScreen/NewsDetailScreen"; // News detail
 import EventDetailScreen from "../screen/UserScreen/EventDetailScreen"; // Event detail (user version)
 import EditUserScreen from "../screen/UserScreen/EditUserScreen";
+import ManageUsersScreen from "../screen/AdminScreen/ManageUsersScreen";
+import ManageNewsScreen from "../screen/AdminScreen/ManageNewsScreen";
+import AddEventScreen from "../screen/AdminScreen/AddEventScreen";
+import CategoriesScreen from "../screen/AdminScreen/CategoriesScreen";
 
 const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
@@ -111,6 +118,14 @@ function SettingsStack() {
           ),
         })}
       />
+      <Stack.Screen
+        name="PrivacySecurity"
+        component={PrivacySecurityScreen}
+      />
+      <Stack.Screen
+        name="HelpSupport"
+        component={HelpSupportScreen}
+      />
     </Stack.Navigator>
   );
 }
@@ -172,7 +187,7 @@ function UserBottomTabs() {
           </TouchableOpacity>
         ),
         headerRight: () => (
-          <TouchableOpacity style={{ marginRight: 14 }} onPress={() => navigation.getParent()?.navigate('Settings')}>
+          <TouchableOpacity style={{ marginRight: 14 }} onPress={() => navigation.getParent()?.navigate('Settings', { screen: 'SettingsMain' })}>
             <Ionicons name="settings-outline" size={22} color="#1E293B" />
           </TouchableOpacity>
         ),
@@ -363,10 +378,41 @@ export default function UserDrawerNavigator() {
         name="Home"
         component={UserBottomTabs}
         options={{
+          drawerLabel: 'Home',
           drawerIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={26} color={color} />
           ),
         }}
+      />
+      <Drawer.Screen
+        name="Help"
+        component={HelpSupportScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="help-circle-outline" size={26} color={color} />
+          ),
+        }}
+      />
+      {/* Hidden admin screens for navigation */}
+      <Drawer.Screen
+        name="ManageUsers"
+        component={ManageUsersScreen}
+        options={{ drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="ManageNews"
+        component={ManageNewsScreen}
+        options={{ drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="AddEvent"
+        component={AddEventScreen}
+        options={{ drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="Categories"
+        component={CategoriesScreen}
+        options={{ drawerItemStyle: { height: 0 } }}
       />
 
       {/* Hidden route for editing user (navigated to programmatically) */}
@@ -382,16 +428,6 @@ export default function UserDrawerNavigator() {
         options={{
           drawerIcon: ({ color, size }) => (
             <Ionicons name="settings-outline" size={26} color={color} />
-          ),
-        }}
-      />
-
-      <Drawer.Screen
-        name="Help"
-        component={HelpScreen}
-        options={{
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="help-circle-outline" size={26} color={color} />
           ),
         }}
       />
