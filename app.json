@@ -1,14 +1,15 @@
+
 {
   "expo": {
-    "name": "CampusNewsApp",
-    "slug": "CampusNewsApp",
-    "version": "1.0.0",
+    "name": "CampusBuzz",
+    "slug": "CampusBuzz",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/converted_image.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/converted_image.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -16,17 +17,23 @@
       "supportsTablet": true
     },
     "android": {
+      "versionCode": 2,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/converted_image.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.attendify.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "updates": {
+      "enabled": false
+    },
     "plugins": [
       "expo-barcode-scanner"
-    ]
+    ],
+    "owner": "kolinsy"
   }
 }

@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { auth, db } from "../firebase/firebaseConfig";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
@@ -136,6 +136,15 @@ export default function LoginScreen() {
               <Text style={styles.signUpLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
+
+          {/* About the Creator */}
+          <TouchableOpacity
+            style={styles.aboutCreator}
+            onPress={() => navigation.navigate('AboutCreator')}
+          >
+            <Ionicons name="person-circle-outline" size={20} color="#7C3AED" style={styles.aboutIcon} />
+            <Text style={styles.aboutText}>About the creator</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -226,5 +235,20 @@ const styles = StyleSheet.create({
     color: "#667EEA",
     fontSize: 14,
     fontWeight: "700",
+  },
+  aboutCreator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  aboutIcon: {
+    marginRight: 8,
+  },
+  aboutText: {
+    color: '#64748B',
+    fontSize: 14,
+    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
 });
