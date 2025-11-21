@@ -64,15 +64,15 @@ export default function AboutCreatorScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Team</Text>
           <View style={styles.teamGrid}>
             {[
-              { name: 'Alex M', role: 'Backend', avatar: require('../assets/jeff.jpg') },
-              { name: 'Rina K', role: 'Frontend', avatar: require('../assets/ilyn.jpg') },
-              { name: 'Sam P', role: 'Mobile', avatar: require('../assets/miko.jpg') },
-              { name: 'Dana L', role: 'QA', avatar: require('../assets/mar.jpg') },
-              { name: 'Maya S', role: 'UX', avatar: require('../assets/oge.jpg') },
-              { name: 'John D', role: 'DevOps', avatar: require('../assets/tmc.jpg') },
-              { name: 'Ivy T', role: 'Content', avatar: require('../assets/converted_image.png') },
-              { name: 'Leo R', role: 'Design', avatar: require('../assets/logo.png') },
-              { name: 'Nia O', role: 'Support', avatar: require('../assets/icon.png') },
+              { name: 'Ma.Rogelyn', role: 'Sapong', avatar: require('../assets/oge.jpg') },
+              { name: 'Nelcris', role: 'Asoro', avatar: require('../assets/nelcris.jpg') },
+              { name: 'Miko', role: 'Ore', avatar: require('../assets/miko.jpeg') },
+              { name: 'Marilyn', role: 'Salaum', avatar: require('../assets/mar.jpeg') },
+              { name: 'Judith', role: 'Butlig', avatar: require('../assets/judith.png') },
+              { name: 'Jefferson', role: 'Busano', avatar: require('../assets/jeff.jpg') },
+              { name: 'Ailyn', role: 'Albaran', avatar: require('../assets/ailyn.png') },
+              { name: 'Ailyn', role: 'Namuag', avatar: require('../assets/ilyn.jpeg') },
+              { name: 'Alvin', role: 'Alba', avatar: require('../assets/alvin.jpg') },
             ].map((member, idx) => (
               <TouchableOpacity key={idx} style={styles.memberCard}>
                 <Image source={member.avatar} style={styles.memberAvatar} />

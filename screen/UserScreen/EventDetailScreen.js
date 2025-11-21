@@ -144,6 +144,9 @@ export default function EventDetailScreen({ route, navigation }) {
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 20 }}>
         <View style={styles.card}>
           <View style={styles.headerSection}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="chevron-back" size={28} color="#7C3AED" />
+            </TouchableOpacity>
             <View style={styles.categoryBadge}>
               <MaterialCommunityIcons name="calendar-check" size={16} color="#7C3AED" />
               <Text style={styles.categoryText}>{event.category || 'Event'}</Text>
@@ -298,7 +301,7 @@ const styles = StyleSheet.create({
 
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, elevation: 2 },
 
-  headerSection: { marginBottom: 20 },
+  headerSection: { marginBottom: 20, flexDirection: 'column' },
   categoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -311,6 +314,8 @@ const styles = StyleSheet.create({
   },
   categoryText: { color: '#7C3AED', fontSize: 12, fontWeight: '700' },
   title: { fontSize: 22, fontWeight: '800', color: '#0F172A', lineHeight: 28 },
+
+  backBtn: { marginBottom: 8, alignSelf: 'flex-start', padding: 8 },
 
   detailsGrid: { marginBottom: 20 },
   detailItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E6EEF8' },

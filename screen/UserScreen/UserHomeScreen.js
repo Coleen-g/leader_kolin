@@ -79,32 +79,62 @@ export default function UserHomeScreen({ navigation }) {
     const q = query(newsRef, where('status', '==', 'Approved'));
     const unsubscribe = onSnapshot(
       q,
-      (snapshot) => {
-        const newsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          title: doc.data().title,
-          image: doc.data().imageUrl,
-          description: doc.data().description,
-          authorName: doc.data().authorName,
-          authorAvatar: doc.data().authorAvatar,
-          time: doc.data().createdAt
-            ? formatTimeAgo(new Date(doc.data().createdAt.seconds * 1000))
-            : 'Recently',
-          category: doc.data().category || 'General',
-          createdAt: doc.data().createdAt,
-        }));
-        
-        // Sort by createdAt descending (newest first) in JavaScript
-        newsData.sort((a, b) => {
-          const timeA = a.createdAt?.seconds || 0;
-          const timeB = b.createdAt?.seconds || 0;
-          return timeB - timeA;
-        });
-        
-        setAllNews(newsData);
-        setLatestNews(newsData.slice(0, 6)); // Get 6 latest for carousel
-        setFilteredNews(newsData);
-        setRefreshing(false);
+      async (snapshot) => {
+        try {
+          // map documents to include event image when eventId exists
+          const newsData = await Promise.all(snapshot.docs.map(async (d) => {
+            const data = d.data();
+            let imageUrl = data.imageUrl || data.image || null;
+
+            // If this news references an event, try to fetch the event image and include event data
+            let eventData = null;
+            if (data.eventId) {
+              try {
+                const eventRef = doc(db, 'events', data.eventId);
+                const eventSnap = await getDoc(eventRef);
+                if (eventSnap.exists()) {
+                  const ev = eventSnap.data();
+                  // prefer event's image when news has none
+                  imageUrl = imageUrl || ev.imageUrl || ev.image || null;
+                  eventData = { id: eventSnap.id, ...ev };
+                }
+              } catch (e) {
+                console.warn('Failed to load event image/data for', data.eventId, e.message);
+              }
+            }
+
+            return {
+              id: d.id,
+              title: data.title,
+              image: imageUrl,
+              description: data.description,
+              authorName: data.authorName,
+              authorAvatar: data.authorAvatar,
+              time: data.createdAt ? formatTimeAgo(new Date(data.createdAt.seconds * 1000)) : 'Recently',
+              category: data.category || 'General',
+              createdAt: data.createdAt,
+              raw: data,
+              // include referenced event details (if any) so the floating modal can show event info
+              event: eventData,
+              eventId: data.eventId || null,
+            };
+          }));
+
+          // Sort by createdAt descending (newest first) in JavaScript
+          newsData.sort((a, b) => {
+            const timeA = a.createdAt?.seconds || 0;
+            const timeB = b.createdAt?.seconds || 0;
+            return timeB - timeA;
+          });
+
+          setAllNews(newsData);
+          setLatestNews(newsData.slice(0, 6)); // Get 6 latest for carousel
+          setFilteredNews(newsData);
+          setRefreshing(false);
+        } catch (error) {
+          console.error('Error processing news snapshot:', error);
+          setRefreshing(false);
+        }
       },
       (error) => {
         console.error('Error fetching news:', error);

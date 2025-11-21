@@ -24,6 +24,13 @@ export default function FloatingNewsScreen({ visible, onClose, navigation, newsI
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState(null);
 
+  const formatEventDateFrom = (ev) => {
+    if (!ev) return '';
+    const ts = ev?.date?.seconds || ev?.startDate?.seconds || ev?.createdAt?.seconds;
+    if (ts) return new Date(ts * 1000).toLocaleDateString();
+    return '';
+  };
+
   useEffect(() => {
     // If a specific news item is provided, fetch its latest detail
     let unsubscribe = null;
@@ -35,7 +42,7 @@ export default function FloatingNewsScreen({ visible, onClose, navigation, newsI
         .then((snap) => {
           if (snap.exists()) {
             const d = snap.data();
-            setDetail({
+            const detailObj = {
               id: snap.id,
               title: d.title,
               image: d.imageUrl || d.image || null,
@@ -43,7 +50,34 @@ export default function FloatingNewsScreen({ visible, onClose, navigation, newsI
               authorName: d.author || d.authorName || 'Unknown',
               date: d.createdAt ? new Date(d.createdAt.seconds * 1000).toLocaleDateString() : '',
               raw: d,
-            });
+            };
+
+            // If the calling component already passed event data, prefer that
+            if (newsItem.event) {
+              detailObj.event = newsItem.event;
+            } else if (d.eventId) {
+              // fetch referenced event details
+              try {
+                getDoc(doc(db, 'events', d.eventId)).then((evSnap) => {
+                  if (evSnap.exists()) {
+                    detailObj.event = { id: evSnap.id, ...evSnap.data() };
+                    setDetail(detailObj);
+                    return;
+                  }
+                  // if no event, still set detail without event
+                  setDetail(detailObj);
+                }).catch((e) => {
+                  console.warn('Failed to fetch referenced event for news detail', e.message);
+                  setDetail(detailObj);
+                });
+                // early return since setDetail will be called in the promise above
+                return;
+              } catch (e) {
+                console.warn('Error fetching event for news detail', e.message);
+              }
+            }
+
+            setDetail(detailObj);
           } else {
             setDetail(null);
           }
@@ -94,15 +128,39 @@ export default function FloatingNewsScreen({ visible, onClose, navigation, newsI
       onPress={() => {
         // Instead of closing the floating overlay immediately, show the
         // article detail inside the panel. Only tapping the backdrop will close.
-        setDetail({
-          id: item.id,
-          title: item.title,
-          image: item.image || null,
-          description: item.description || '',
-          authorName: item.authorName || 'Unknown',
-          date: item.date || '',
-          raw: item.raw || null,
-        });
+        (async () => {
+          setLoading(true);
+          try {
+            const detailObj = {
+              id: item.id,
+              title: item.title,
+              image: item.image || null,
+              description: item.description || '',
+              authorName: item.authorName || 'Unknown',
+              date: item.date || '',
+              raw: item.raw || null,
+            };
+
+            // If the item already has event data attached, use it.
+            if (item.event) {
+              detailObj.event = item.event;
+            } else if (item.raw && item.raw.eventId) {
+              // fetch event details
+              try {
+                const evSnap = await getDoc(doc(db, 'events', item.raw.eventId));
+                if (evSnap.exists()) {
+                  detailObj.event = { id: evSnap.id, ...evSnap.data() };
+                }
+              } catch (e) {
+                console.warn('Failed to fetch event for item pressed', e.message);
+              }
+            }
+
+            setDetail(detailObj);
+          } finally {
+            setLoading(false);
+          }
+        })();
       }}
     >
       {item.image ? <Image source={{ uri: item.image }} style={styles.thumb} /> : <View style={[styles.thumb, { backgroundColor: '#E6EEF8', justifyContent: 'center', alignItems: 'center' }]}><MaterialCommunityIcons name="image-off-outline" size={28} color="#94A3B8"/></View>}
@@ -134,6 +192,17 @@ export default function FloatingNewsScreen({ visible, onClose, navigation, newsI
                 <Text style={{ fontSize: 18, fontWeight: '700', color: '#0F172A', marginBottom: 8 }}>{detail.title}</Text>
                 <Text style={{ color: '#64748B', marginBottom: 12 }}>{detail.authorName} • {detail.date}</Text>
                 <Text style={{ color: '#0F172A', lineHeight: 22 }}>{detail.description || 'No content available.'}</Text>
+                {detail.event ? (
+                  <View style={{ marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 8 }}>Event Info</Text>
+                    { (detail.event.imageUrl || detail.event.image) ? (
+                      <Image source={{ uri: detail.event.imageUrl || detail.event.image }} style={{ width: '100%', height: 160, borderRadius: 10, marginBottom: 10 }} />
+                    ) : null }
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A' }}>{detail.event.title || detail.event.name || detail.event.eventName || 'Event'}</Text>
+                    <Text style={{ color: '#64748B', marginBottom: 8 }}>{formatEventDateFrom(detail.event)}{detail.event.location ? ` • ${detail.event.location}` : ''}</Text>
+                    <Text style={{ color: '#0F172A', lineHeight: 20 }}>{detail.event.description || detail.event.details || 'No event details available.'}</Text>
+                  </View>
+                ) : null}
               </ScrollView>
             ) : (
               <FlatList

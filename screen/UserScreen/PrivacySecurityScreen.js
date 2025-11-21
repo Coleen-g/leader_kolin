@@ -12,7 +12,6 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../../firebase/firebaseConfig';
 import { deleteUser, signOut } from 'firebase/auth';
 
@@ -185,78 +184,8 @@ export default function PrivacySecurityScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Data & Privacy Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="document-text-outline" size={20} color="#667EEA" />
-            <Text style={styles.sectionTitle}>Data & Privacy</Text>
-          </View>
-          <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.settingRow}
-              onPress={() => Alert.alert('Privacy Policy', 'Privacy policy details will be displayed here.')}
-            >
-              <View style={styles.settingLeft}>
-                <MaterialCommunityIcons name="file-document-outline" size={20} color="#667EEA" />
-                <View style={styles.settingTextContainer}>
-                  <Text style={styles.label}>Privacy Policy</Text>
-                  <Text style={styles.description}>Read our privacy policy</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-            </TouchableOpacity>
-            <View style={styles.divider} />
-            <TouchableOpacity 
-              style={styles.settingRow}
-              onPress={() => Alert.alert('Terms of Service', 'Terms of service details will be displayed here.')}
-            >
-              <View style={styles.settingLeft}>
-                <MaterialCommunityIcons name="file-contract-outline" size={20} color="#667EEA" />
-                <View style={styles.settingTextContainer}>
-                  <Text style={styles.label}>Terms of Service</Text>
-                  <Text style={styles.description}>Review our terms</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-            </TouchableOpacity>
-            <View style={styles.divider} />
-            <TouchableOpacity style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <MaterialCommunityIcons name="download-outline" size={20} color="#667EEA" />
-                <View style={styles.settingTextContainer}>
-                  <Text style={styles.label}>Download Your Data</Text>
-                  <Text style={styles.description}>Export your personal data</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Danger Zone */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={20} color="#EF4444" />
-            <Text style={[styles.sectionTitle, { color: '#EF4444' }]}>Danger Zone</Text>
-          </View>
-          <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.settingRow}
-              onPress={handleDeleteAccount}
-            >
-              <View style={styles.settingLeft}>
-                <MaterialCommunityIcons name="delete-outline" size={20} color="#EF4444" />
-                <View style={styles.settingTextContainer}>
-                  <Text style={[styles.label, { color: '#EF4444' }]}>Delete Account</Text>
-                  <Text style={styles.description}>Permanently delete your account</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#EF4444" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.spacer} />
+        {/* End of main content - simplified view */}
+        <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
   );

@@ -7,20 +7,14 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Alert,
-  TextInput,
   StatusBar,
   Platform,
-  ActivityIndicator,
   Linking,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function HelpSupportScreen({ navigation }) {
   const [expanded, setExpanded] = useState(null);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
-  const [submitting, setSubmitting] = useState(false);
 
   const faqs = [
     {
@@ -55,27 +49,7 @@ export default function HelpSupportScreen({ navigation }) {
     },
   ];
 
-  const handleSubmitSupport = async () => {
-    if (!name.trim() || !email.trim() || !message.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      // Simulate sending email
-      setTimeout(() => {
-        Alert.alert('Success', 'Your message has been sent to our support team. We\'ll get back to you soon!');
-        setName('');
-        setEmail('');
-        setMessage('');
-        setSubmitting(false);
-      }, 1500);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to send message. Please try again.');
-      setSubmitting(false);
-    }
-  };
+  // simplified: support requests should use Quick Contact buttons (email/phone)
 
   const toggleFAQ = (id) => {
     setExpanded(expanded === id ? null : id);
@@ -185,108 +159,8 @@ export default function HelpSupportScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Contact Form */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="mail" size={20} color="#667EEA" />
-            <Text style={styles.sectionTitle}>Send Us a Message</Text>
-          </View>
-          <View style={styles.card}>
-            <TextInput
-              style={styles.input}
-              placeholder="Your Name"
-              placeholderTextColor="#94A3B8"
-              value={name}
-              onChangeText={setName}
-              editable={!submitting}
-            />
-            <View style={styles.divider} />
-            <TextInput
-              style={styles.input}
-              placeholder="Your Email"
-              placeholderTextColor="#94A3B8"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              editable={!submitting}
-            />
-            <View style={styles.divider} />
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Your Message"
-              placeholderTextColor="#94A3B8"
-              value={message}
-              onChangeText={setMessage}
-              multiline
-              numberOfLines={4}
-              editable={!submitting}
-            />
-            <TouchableOpacity
-              style={[styles.submitButton, submitting && { opacity: 0.7 }]}
-              onPress={handleSubmitSupport}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <MaterialCommunityIcons name="send-outline" size={18} color="#fff" />
-                  <Text style={styles.submitButtonText}>Send Message</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Resources */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="book" size={20} color="#667EEA" />
-            <Text style={styles.sectionTitle}>Resources</Text>
-          </View>
-          <View style={styles.card}>
-            <TouchableOpacity style={styles.resourceItem}>
-              <MaterialCommunityIcons name="file-document-outline" size={20} color="#667EEA" />
-              <View style={styles.resourceInfo}>
-                <Text style={styles.resourceLabel}>User Guide</Text>
-                <Text style={styles.resourceDesc}>Learn how to use the app</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-            </TouchableOpacity>
-            <View style={styles.divider} />
-            <TouchableOpacity style={styles.resourceItem}>
-              <MaterialCommunityIcons name="bug-outline" size={20} color="#667EEA" />
-              <View style={styles.resourceInfo}>
-                <Text style={styles.resourceLabel}>Report a Bug</Text>
-                <Text style={styles.resourceDesc}>Help us improve the app</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-            </TouchableOpacity>
-            <View style={styles.divider} />
-            <TouchableOpacity style={styles.resourceItem}>
-              <MaterialCommunityIcons name="lightbulb-outline" size={20} color="#667EEA" />
-              <View style={styles.resourceInfo}>
-                <Text style={styles.resourceLabel}>Feature Requests</Text>
-                <Text style={styles.resourceDesc}>Suggest new features</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* App Info */}
-        <View style={styles.section}>
-          <View style={styles.infoBox}>
-            <MaterialCommunityIcons name="information-outline" size={20} color="#667EEA" />
-            <View>
-              <Text style={styles.infoTitle}>Campus News App</Text>
-              <Text style={styles.infoText}>Version 1.0.0</Text>
-              <Text style={styles.infoText}>© 2024 Campus News Team. All rights reserved.</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.spacer} />
+        {/* Simplified: end of main content */}
+        <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
   );

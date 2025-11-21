@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "CampusBuzz",
@@ -23,7 +22,10 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.attendify.app"
+      "package": "com.attendify.app",
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -32,8 +34,13 @@
       "enabled": false
     },
     "plugins": [
-      "expo-barcode-scanner"
+     
     ],
-    "owner": "kolinsy"
+    "owner": "coleen.keyt",
+    "extra": {
+      "eas": {
+        "projectId": "81ab7f8e-1946-45ab-bafe-96ecffc8e529"
+      }
+    }
   }
 }

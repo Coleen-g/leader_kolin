@@ -105,29 +105,52 @@ export default function UserNewsScreen({ navigation }) {
     const newsRef = collection(db, "news");
     // Fetch only Approved news documents
     const q = query(newsRef, where('status', '==', 'Approved'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const news = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        title: doc.data().title,
-        image: doc.data().imageUrl || doc.data().image || null,
-        date: doc.data().createdAt ? new Date(doc.data().createdAt.seconds * 1000).toLocaleDateString() : "",
-        description: doc.data().content || doc.data().description || "",
-        category: doc.data().category || "General",
-        authorName: doc.data().author || doc.data().authorName || 'Unknown',
-        authorAvatar: doc.data().authorAvatar || doc.data().authorPhotoURL || null,
-        raw: doc.data(),
-      }));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      try {
+        const news = await Promise.all(snapshot.docs.map(async (d) => {
+          const data = d.data();
+          let image = data.imageUrl || data.image || null;
 
-      // Sort by createdAt descending in JavaScript to avoid composite index
-      news.sort((a, b) => {
-        const ta = a.raw && a.raw.createdAt && a.raw.createdAt.seconds ? a.raw.createdAt.seconds : 0;
-        const tb = b.raw && b.raw.createdAt && b.raw.createdAt.seconds ? b.raw.createdAt.seconds : 0;
-        return tb - ta;
-      });
+          if (!image && data.eventId) {
+            try {
+              const eventRef = doc(db, 'events', data.eventId);
+              const eventSnap = await getDoc(eventRef);
+              if (eventSnap.exists()) {
+                const ev = eventSnap.data();
+                image = ev.imageUrl || ev.image || image;
+              }
+            } catch (e) {
+              console.warn('Failed to load event image for', data.eventId, e.message);
+            }
+          }
 
-      setAllNews(news);
-      setFilteredNews(news);
-      setRefreshing(false);
+          return {
+            id: d.id,
+            title: data.title,
+            image,
+            date: data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleDateString() : "",
+            description: data.content || data.description || "",
+            category: data.category || "General",
+            authorName: data.author || data.authorName || 'Unknown',
+            authorAvatar: data.authorAvatar || data.authorPhotoURL || null,
+            raw: data,
+          };
+        }));
+
+        // Sort by createdAt descending in JavaScript to avoid composite index
+        news.sort((a, b) => {
+          const ta = a.raw && a.raw.createdAt && a.raw.createdAt.seconds ? a.raw.createdAt.seconds : 0;
+          const tb = b.raw && b.raw.createdAt && b.raw.createdAt.seconds ? b.raw.createdAt.seconds : 0;
+          return tb - ta;
+        });
+
+        setAllNews(news);
+        setFilteredNews(news);
+        setRefreshing(false);
+      } catch (error) {
+        console.error("Error processing news snapshot:", error);
+        setRefreshing(false);
+      }
     }, (error) => {
       console.error("Error fetching news:", error);
       setRefreshing(false);
@@ -184,10 +207,10 @@ export default function UserNewsScreen({ navigation }) {
       )}
       <View style={styles.listContent}>
         <View style={styles.rowTop}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <Image source={{ uri: item.authorAvatar || 'https://i.pravatar.cc/100' }} style={styles.metaAvatar} />
-            <View style={{ marginLeft: 8 }}>
-              <Text style={styles.metaAuthor}>{item.authorName}</Text>
+            <View style={{ marginLeft: 8, flex: 1 }}>
+              <Text style={styles.metaAuthor} numberOfLines={1} ellipsizeMode="tail">{item.authorName}</Text>
               <Text style={styles.listTime}>{item.date}</Text>
             </View>
           </View>
